@@ -1,0 +1,11 @@
+services:
+  minbot:
+    build: .
+    volumes:
+      - config:/root/.minbot
+      - workspace:/workspace
+    restart: unless-stopped
+
+volumes:
+  config:
+  workspace:
