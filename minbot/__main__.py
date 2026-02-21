@@ -6,6 +6,7 @@ def setup():
     """Interactive first-time setup. Writes config to ~/.minbot/config.json."""
     print("minbot setup\n")
 
+    github_token = input("GitHub token: ").strip()
     telegram_token = input("Telegram bot token: ").strip()
     telegram_chat_id = int(input("Telegram chat ID: ").strip())
 
@@ -24,6 +25,7 @@ def setup():
     config = Config(
         telegram_token=telegram_token,
         telegram_chat_id=telegram_chat_id,
+        github_token=github_token,
         github_repos=repos,
     )
     save_config(config)

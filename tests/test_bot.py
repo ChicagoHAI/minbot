@@ -24,6 +24,7 @@ def _fake_config():
     return Config(
         telegram_token="fake-token",
         telegram_chat_id=12345,
+        github_token="ghp_fake",
         github_repos=["owner/repo"],
     )
 
@@ -32,6 +33,7 @@ def _fake_config_multi():
     return Config(
         telegram_token="fake-token",
         telegram_chat_id=12345,
+        github_token="ghp_fake",
         github_repos=["owner/repo", "owner/repo2"],
     )
 

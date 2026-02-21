@@ -126,6 +126,7 @@ async def cmd_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 def main():
     config = load_config()
+    github.set_token(config.github_token)
     app = Application.builder().token(config.telegram_token).build()
 
     app.add_handler(CommandHandler("start", cmd_start))

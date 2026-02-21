@@ -1,12 +1,29 @@
 """GitHub operations via `gh` CLI."""
 
 import json
+import os
 import subprocess
+
+_token: str | None = None
+
+
+def set_token(token: str) -> None:
+    """Set the GitHub token used for all gh/git operations."""
+    global _token
+    _token = token
+
+
+def _env() -> dict[str, str]:
+    """Return environment with GH_TOKEN set."""
+    env = os.environ.copy()
+    if _token:
+        env["GH_TOKEN"] = _token
+    return env
 
 
 def _run(args: list[str]) -> str:
     result = subprocess.run(
-        ["gh"] + args, capture_output=True, text=True, check=True
+        ["gh"] + args, capture_output=True, text=True, check=True, env=_env(),
     )
     return result.stdout.strip()
 
@@ -51,7 +68,6 @@ def create_pr(repo: str, title: str, body: str, branch: str) -> str:
 
 def clone_repo(repo: str, path: str) -> None:
     """Clone a repo (or pull if already cloned)."""
-    import os
     if os.path.exists(os.path.join(path, ".git")):
         subprocess.run(
             ["git", "pull"], cwd=path, check=True, capture_output=True,
@@ -59,5 +75,5 @@ def clone_repo(repo: str, path: str) -> None:
     else:
         subprocess.run(
             ["gh", "repo", "clone", repo, path],
-            check=True, capture_output=True,
+            check=True, capture_output=True, env=_env(),
         )

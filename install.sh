@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+REPO_URL="https://github.com/chenhao/minbot.git"
+INSTALL_DIR="minbot"
+
 echo "minbot installer"
 echo ""
 
@@ -50,10 +53,21 @@ else
     echo "claude: found"
 fi
 
+# Clone repo if not already inside it
+if [[ ! -f "pyproject.toml" ]] || ! grep -q 'name = "minbot"' pyproject.toml 2>/dev/null; then
+    echo ""
+    echo "Cloning minbot..."
+    git clone "$REPO_URL" "$INSTALL_DIR"
+    cd "$INSTALL_DIR"
+fi
+
 # Install Python dependencies
 echo ""
 echo "Installing Python dependencies..."
 uv sync
 
 echo ""
-echo "Done! Run 'uv run python -m minbot setup' to configure, then 'uv run minbot' to start."
+echo "Done! Next steps:"
+echo "  cd ${INSTALL_DIR}"
+echo "  uv run python -m minbot setup      # configure tokens and repos"
+echo "  uv run minbot                      # start the bot"
