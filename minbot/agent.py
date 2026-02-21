@@ -1,25 +1,42 @@
 """LLM reasoning for issue triage and suggestions."""
 
 import json
-import anthropic
+import subprocess
+
+try:
+    import anthropic
+except ImportError:
+    anthropic = None
 
 SYSTEM = """You are a software development triage assistant. You analyze GitHub issues and estimate their difficulty and urgency.
 
 Respond in JSON only. No markdown fences."""
 
 
-def _call(api_key: str, prompt: str) -> str:
-    client = anthropic.Anthropic(api_key=api_key)
-    msg = client.messages.create(
-        model="claude-sonnet-4-5-20250929",
-        max_tokens=2048,
-        system=SYSTEM,
-        messages=[{"role": "user", "content": prompt}],
+def _call_cli(prompt: str, system: str | None = None) -> str:
+    """Call claude CLI as a subprocess."""
+    full_prompt = f"{system}\n\n{prompt}" if system else prompt
+    result = subprocess.run(
+        ["claude", "--print", "-p", full_prompt],
+        capture_output=True, text=True, check=True,
     )
-    return msg.content[0].text
+    return result.stdout.strip()
 
 
-def analyze_issues(api_key: str, issues: list[dict]) -> list[dict]:
+def _call(prompt: str, api_key: str | None = None, system: str | None = None) -> str:
+    if api_key and anthropic:
+        client = anthropic.Anthropic(api_key=api_key)
+        msg = client.messages.create(
+            model="claude-sonnet-4-5-20250929",
+            max_tokens=2048,
+            system=system or "",
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return msg.content[0].text
+    return _call_cli(prompt, system)
+
+
+def analyze_issues(issues: list[dict], api_key: str | None = None) -> list[dict]:
     """Estimate difficulty and urgency for each issue.
 
     Returns list of {number, title, difficulty, urgency, summary}.
@@ -36,10 +53,10 @@ Issues:
 
 Return a JSON array of objects with keys: number, title, difficulty, urgency, summary."""
 
-    return json.loads(_call(api_key, prompt))
+    return json.loads(_call(prompt, api_key, SYSTEM))
 
 
-def suggest_next(api_key: str, issues: list[dict]) -> str:
+def suggest_next(issues: list[dict], api_key: str | None = None) -> str:
     """Suggest which issue to work on next. Returns readable text."""
     if not issues:
         return "No open issues found."
@@ -48,10 +65,4 @@ def suggest_next(api_key: str, issues: list[dict]) -> str:
 Issues:
 {json.dumps(issues, indent=2, default=str)}"""
 
-    client = anthropic.Anthropic(api_key=api_key)
-    msg = client.messages.create(
-        model="claude-sonnet-4-5-20250929",
-        max_tokens=512,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    return msg.content[0].text
+    return _call(prompt, api_key)

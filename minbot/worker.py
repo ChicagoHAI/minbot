@@ -1,21 +1,23 @@
 """Claude Code CLI integration for working on issues."""
 
 import asyncio
+import os
 import subprocess
 from minbot import github
 
 
 async def work_on_issue(
-    repo_path: str, repo: str, issue: dict, on_output=None,
+    workspace_dir: str, repo: str, issue: dict, on_output=None,
 ) -> str:
     """Run Claude Code on an issue. Returns the final output.
 
     Args:
-        repo_path: Local path to the cloned repo.
+        workspace_dir: Base directory for cloned repos.
         repo: GitHub repo in owner/repo format.
         issue: Issue dict with number, title, body.
         on_output: Optional async callback for streaming output lines.
     """
+    repo_path = os.path.join(workspace_dir, repo)
     branch = f"issue-{issue['number']}"
     github.clone_repo(repo, repo_path)
     github.create_branch(repo_path, branch)

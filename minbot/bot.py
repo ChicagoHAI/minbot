@@ -23,63 +23,90 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "minbot is running. Commands:\n"
         "/issues - list issues with estimates\n"
-        "/work <number> - work on an issue\n"
+        "/work <number> or /work <repo> <number> - work on an issue\n"
         "/status - check current work status\n"
-        "/suggest - get suggestion on what to work on"
+        "/suggest - get suggestion on what to work on\n"
+        "/repos - list configured repos"
     )
+
+
+async def cmd_repos(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    config = _get_config()
+    text = "Configured repos:\n" + "\n".join(f"- {r}" for r in config.github_repos)
+    await update.message.reply_text(text)
 
 
 async def cmd_issues(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     config = _get_config()
     await update.message.reply_text("Fetching issues...")
-    issues = github.list_issues(config.github_repo)
-    if not issues:
-        await update.message.reply_text("No open issues.")
-        return
 
-    analyzed = agent.analyze_issues(config.anthropic_api_key, issues)
     text = ""
-    for a in analyzed:
-        text += (
-            f"#{a['number']} {a['title']}\n"
-            f"  Difficulty: {a['difficulty']} | Urgency: {a['urgency']}\n"
-            f"  {a['summary']}\n\n"
-        )
-    await update.message.reply_text(text or "No issues found.")
+    for repo in config.github_repos:
+        issues = github.list_issues(repo)
+        if not issues:
+            continue
+        analyzed = agent.analyze_issues(issues, config.anthropic_api_key)
+        text += f"[{repo}]\n"
+        for a in analyzed:
+            text += (
+                f"#{a['number']} {a['title']}\n"
+                f"  Difficulty: {a['difficulty']} | Urgency: {a['urgency']}\n"
+                f"  {a['summary']}\n\n"
+            )
+
+    await update.message.reply_text(text or "No open issues.")
 
 
 async def cmd_suggest(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     config = _get_config()
-    issues = github.list_issues(config.github_repo)
-    analyzed = agent.analyze_issues(config.anthropic_api_key, issues)
-    suggestion = agent.suggest_next(config.anthropic_api_key, analyzed)
+    all_analyzed = []
+    for repo in config.github_repos:
+        issues = github.list_issues(repo)
+        analyzed = agent.analyze_issues(issues, config.anthropic_api_key)
+        for a in analyzed:
+            a["repo"] = repo
+        all_analyzed.extend(analyzed)
+    suggestion = agent.suggest_next(all_analyzed, config.anthropic_api_key)
     await update.message.reply_text(suggestion)
 
 
 async def cmd_work(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     global _current_task
+
     if not ctx.args:
-        await update.message.reply_text("Usage: /work <issue_number>")
+        await update.message.reply_text("Usage: /work <number> or /work <repo> <number>")
         return
 
     config = _get_config()
-    number = int(ctx.args[0])
-    issue = github.get_issue(config.github_repo, number)
+
+    # Parse args: /work <number> (single repo) or /work <repo> <number>
+    if len(ctx.args) == 1:
+        if len(config.github_repos) != 1:
+            await update.message.reply_text(
+                "Multiple repos configured. Usage: /work <repo> <number>"
+            )
+            return
+        repo = config.github_repos[0]
+        number = int(ctx.args[0])
+    else:
+        repo = ctx.args[0]
+        number = int(ctx.args[1])
+
+    issue = github.get_issue(repo, number)
 
     if _current_task and not _current_task.done():
         await update.message.reply_text("Already working on something. Check /status.")
         return
 
-    await update.message.reply_text(f"Starting work on #{number}: {issue['title']}")
+    await update.message.reply_text(f"Starting work on {repo}#{number}: {issue['title']}")
 
     async def on_output(text: str):
-        # Send periodic updates (throttled)
         pass
 
     async def do_work():
         try:
             result = await worker.work_on_issue(
-                config.repo_path, config.github_repo, issue, on_output,
+                config.workspace_dir, repo, issue, on_output,
             )
             await update.message.reply_text(result)
         except Exception as e:
@@ -106,6 +133,7 @@ def main():
     app.add_handler(CommandHandler("suggest", cmd_suggest))
     app.add_handler(CommandHandler("work", cmd_work))
     app.add_handler(CommandHandler("status", cmd_status))
+    app.add_handler(CommandHandler("repos", cmd_repos))
 
     async def send_message(text: str):
         await app.bot.send_message(chat_id=config.telegram_chat_id, text=text)

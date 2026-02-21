@@ -1,3 +1,42 @@
-from minbot.bot import main
+import sys
+from minbot.config import CONFIG_PATH, Config, save_config
 
-main()
+
+def setup():
+    """Interactive first-time setup. Writes config to ~/.minbot/config.json."""
+    print("minbot setup\n")
+
+    telegram_token = input("Telegram bot token: ").strip()
+    telegram_chat_id = int(input("Telegram chat ID: ").strip())
+
+    repos = []
+    print("\nAdd GitHub repos (owner/repo format). Empty line to finish.")
+    while True:
+        repo = input("  repo: ").strip()
+        if not repo:
+            break
+        repos.append(repo)
+
+    if not repos:
+        print("At least one repo is required.")
+        sys.exit(1)
+
+    config = Config(
+        telegram_token=telegram_token,
+        telegram_chat_id=telegram_chat_id,
+        github_repos=repos,
+    )
+    save_config(config)
+    print(f"\nConfig saved to {CONFIG_PATH}")
+    print("Run `minbot` or `uv run minbot` to start the bot.")
+
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] == "setup":
+        setup()
+    elif not CONFIG_PATH.exists():
+        print(f"No config found at {CONFIG_PATH}. Running setup...\n")
+        setup()
+    else:
+        from minbot.bot import main
+        main()

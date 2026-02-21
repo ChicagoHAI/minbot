@@ -3,7 +3,7 @@
 import asyncio
 from unittest.mock import patch, MagicMock, AsyncMock
 import pytest
-from minbot.bot import cmd_start, cmd_issues, cmd_status, cmd_work, cmd_suggest
+from minbot.bot import cmd_start, cmd_issues, cmd_status, cmd_work, cmd_suggest, cmd_repos
 from minbot.config import Config
 
 
@@ -24,8 +24,15 @@ def _fake_config():
     return Config(
         telegram_token="fake-token",
         telegram_chat_id=12345,
-        github_repo="owner/repo",
-        anthropic_api_key="fake-key",
+        github_repos=["owner/repo"],
+    )
+
+
+def _fake_config_multi():
+    return Config(
+        telegram_token="fake-token",
+        telegram_chat_id=12345,
+        github_repos=["owner/repo", "owner/repo2"],
     )
 
 
@@ -37,6 +44,18 @@ async def test_cmd_start():
     text = update.message.reply_text.call_args[0][0]
     assert "/issues" in text
     assert "/work" in text
+    assert "/repos" in text
+
+
+@pytest.mark.asyncio
+@patch("minbot.bot._get_config")
+async def test_cmd_repos(mock_config):
+    mock_config.return_value = _fake_config_multi()
+    update = _make_update()
+    await cmd_repos(update, _make_context())
+    text = update.message.reply_text.call_args[0][0]
+    assert "owner/repo" in text
+    assert "owner/repo2" in text
 
 
 @pytest.mark.asyncio
@@ -55,11 +74,11 @@ async def test_cmd_issues(mock_gh, mock_agent, mock_config):
     update = _make_update()
     await cmd_issues(update, _make_context())
 
-    # Two calls: "Fetching issues..." and the result
     assert update.message.reply_text.call_count == 2
     text = update.message.reply_text.call_args[0][0]
     assert "#1" in text
     assert "easy" in text
+    assert "[owner/repo]" in text
 
 
 @pytest.mark.asyncio
@@ -91,6 +110,16 @@ async def test_cmd_work_no_args():
     await cmd_work(update, _make_context(args=[]))
     text = update.message.reply_text.call_args[0][0]
     assert "Usage" in text
+
+
+@pytest.mark.asyncio
+@patch("minbot.bot._get_config")
+async def test_cmd_work_multi_repo_no_repo_arg(mock_config):
+    mock_config.return_value = _fake_config_multi()
+    update = _make_update()
+    await cmd_work(update, _make_context(args=["1"]))
+    text = update.message.reply_text.call_args[0][0]
+    assert "Multiple repos" in text
 
 
 @pytest.mark.asyncio

@@ -8,10 +8,10 @@ CONFIG_PATH = Path.home() / ".minbot" / "config.json"
 class Config(BaseModel):
     telegram_token: str
     telegram_chat_id: int
-    github_repo: str
-    anthropic_api_key: str
+    github_repos: list[str]
+    anthropic_api_key: str | None = None
     check_interval_hours: int = 6
-    repo_path: str = "/workspace/repo"
+    workspace_dir: str = "/workspace"
 
 
 def load_config(path: Path = CONFIG_PATH) -> Config:
