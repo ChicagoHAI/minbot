@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_URL="https://github.com/chenhao/minbot.git"
+REPO_URL="git@github.com:ChicagoHAI/minbot.git"
 INSTALL_DIR="minbot"
 
 echo "minbot installer"

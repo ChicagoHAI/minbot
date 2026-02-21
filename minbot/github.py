@@ -73,7 +73,8 @@ def clone_repo(repo: str, path: str) -> None:
             ["git", "pull"], cwd=path, check=True, capture_output=True,
         )
     else:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
         subprocess.run(
-            ["gh", "repo", "clone", repo, path],
-            check=True, capture_output=True, env=_env(),
+            ["git", "clone", f"git@github.com:{repo}.git", path],
+            check=True, capture_output=True,
         )

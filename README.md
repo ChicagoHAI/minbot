@@ -7,13 +7,13 @@ A lightweight Telegram bot that monitors GitHub issues, estimates difficulty/urg
 **1. Install**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/chenhao/minbot/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ChicagoHAI/minbot/main/install.sh | bash
 ```
 
 Or clone and run locally:
 
 ```bash
-git clone https://github.com/chenhao/minbot.git
+git clone git@github.com:ChicagoHAI/minbot.git
 cd minbot
 bash install.sh
 ```
