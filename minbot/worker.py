@@ -38,12 +38,17 @@ async def work_on_issue(
         f"6. Commit and push the branch '{branch}'."
     )
 
-    log.info("Running claude on %s#%s (this may take a while)...", repo, issue['number'])
-
-    proc = await asyncio.create_subprocess_exec(
+    cmd = [
         "claude", "--dangerously-skip-permissions",
         "--output-format", "stream-json",
-        prompt,
+        "--verbose",
+        "-p", prompt,
+    ]
+    log.info("Running claude on %s#%s (this may take a while)...", repo, issue['number'])
+    log.info("Command: %s", cmd)
+
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
         cwd=repo_path,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
@@ -61,10 +66,13 @@ async def work_on_issue(
             await on_output(line)
 
     await proc.wait()
+    stderr = (await proc.stderr.read()).decode().strip()
     log.info("Claude finished with exit code %s", proc.returncode)
+    if stderr:
+        log.error("Claude stderr: %s", stderr)
 
     if proc.returncode != 0:
-        return f"Claude Code exited with code {proc.returncode}\n" + "\n".join(lines[-20:])
+        return f"Claude Code exited with code {proc.returncode}\nstderr: {stderr}\n" + "\n".join(lines[-20:])
 
     # Push (Claude already merged main and ran tests)
     subprocess.run(
