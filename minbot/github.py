@@ -5,11 +5,13 @@ import subprocess
 from github import Github
 
 _client: Github | None = None
+_token: str | None = None
 
 
 def set_token(token: str) -> None:
-    """Set the GitHub token used for API operations."""
-    global _client
+    """Set the GitHub token used for API and git operations."""
+    global _client, _token
+    _token = token
     _client = Github(token)
 
 
@@ -68,6 +70,6 @@ def clone_repo(repo: str, path: str) -> None:
     else:
         os.makedirs(os.path.dirname(path), exist_ok=True)
         subprocess.run(
-            ["git", "clone", f"git@github.com:{repo}.git", path],
+            ["git", "clone", f"https://x-access-token:{_token}@github.com/{repo}.git", path],
             check=True, capture_output=True,
         )

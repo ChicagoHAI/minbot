@@ -36,7 +36,7 @@ Optionally add `"anthropic_api_key": "sk-ant-..."` to use the Anthropic SDK inst
 docker compose up --build -d
 ```
 
-This builds the image (installs Python deps, Claude CLI) and starts the bot. Your config and SSH keys are mounted into the container automatically.
+This builds the image (installs Python deps, Claude CLI) and starts the bot. Your config is mounted into the container automatically.
 
 Open Telegram and send `/start` to your bot. The bot captures your chat ID automatically on first interaction.
 

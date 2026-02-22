@@ -3,7 +3,6 @@ services:
     build: .
     volumes:
       - ~/.minbot:/root/.minbot
-      - ~/.ssh:/root/.ssh:ro
       - workspace:/workspace
     restart: unless-stopped
 

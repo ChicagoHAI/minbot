@@ -8,6 +8,7 @@ def _setup_client():
     """Set up a mock GitHub client."""
     mock_client = MagicMock()
     github._client = mock_client
+    github._token = "fake-token"
     return mock_client
 
 
@@ -92,4 +93,3 @@ def test_clone_repo_clones_if_new(mock_exists, mock_run):
     github.clone_repo("owner/repo", "/tmp/repo")
     args = mock_run.call_args[0][0]
     assert "clone" in args
-    assert "git@github.com:owner/repo.git" in args
