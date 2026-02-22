@@ -29,7 +29,12 @@ async def work_on_issue(
         f"Work on this GitHub issue.\n\n"
         f"Issue #{issue['number']}: {issue['title']}\n\n"
         f"{issue.get('body', '')}\n\n"
-        f"Make the changes, commit them, and push the branch '{branch}'."
+        f"Steps:\n"
+        f"1. Make the changes to fix the issue.\n"
+        f"2. Run tests to make sure nothing is broken.\n"
+        f"3. Merge the latest main: git fetch origin && git merge origin/main --no-edit\n"
+        f"4. Run tests again after the merge.\n"
+        f"5. Commit and push the branch '{branch}'."
     )
 
     proc = await asyncio.create_subprocess_exec(
@@ -53,7 +58,7 @@ async def work_on_issue(
     if proc.returncode != 0:
         return f"Claude Code exited with code {proc.returncode}\n" + "\n".join(lines[-20:])
 
-    # Push and create PR
+    # Push (Claude already merged main and ran tests)
     subprocess.run(
         ["git", "push", "-u", "origin", branch],
         cwd=repo_path, check=True, capture_output=True,
