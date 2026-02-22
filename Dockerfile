@@ -5,6 +5,7 @@ RUN apt-get update && apt-get install -y curl git && \
 
 # Install Claude Code CLI
 RUN curl -fsSL https://claude.ai/install.sh | bash
+ENV PATH="/root/.local/bin:${PATH}"
 
 WORKDIR /app
 COPY pyproject.toml .

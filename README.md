@@ -12,7 +12,7 @@
 A lightweight Telegram bot that monitors GitHub issues, estimates difficulty/urgency, suggests what to work on, and can autonomously work on issues using Claude Code.
 
 <!-- BEGIN LINE COUNT -->
-📏 Core bot in **563 lines** of Python (run `bash core_lines.sh` to verify)
+📏 Core bot in **582 lines** of Python (run `bash core_lines.sh` to verify)
 <!-- END LINE COUNT -->
 
 ## Quick Start
@@ -51,7 +51,7 @@ docker compose up --build -d
 
 This builds the image (installs Python deps, Claude CLI) and starts the bot. Your config is mounted into the container automatically.
 
-Open Telegram and send `/start` to your bot. The bot captures your chat ID automatically on first interaction.
+Open Telegram and send `/start` to your bot. The first user to `/start` claims the bot — their chat ID is saved and all commands from other users are ignored.
 
 ## Running without Docker
 

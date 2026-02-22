@@ -19,9 +19,18 @@ def _get_config():
     return load_config()
 
 
+def _authorized(update: Update, config) -> bool:
+    """Check if the sender matches the configured chat ID."""
+    return not config.telegram_chat_id or update.effective_chat.id == config.telegram_chat_id
+
+
 async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     config = _get_config()
     chat_id = update.effective_chat.id
+
+    # Allow first user to claim the bot
+    if config.telegram_chat_id and config.telegram_chat_id != chat_id:
+        return
 
     if config.telegram_chat_id != chat_id:
         config.telegram_chat_id = chat_id
@@ -40,12 +49,16 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 async def cmd_repos(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     config = _get_config()
+    if not _authorized(update, config):
+        return
     text = "Configured repos:\n" + "\n".join(f"- {r}" for r in config.github_repos)
     await update.message.reply_text(text)
 
 
 async def cmd_issues(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     config = _get_config()
+    if not _authorized(update, config):
+        return
     await update.message.reply_text("Fetching issues...")
 
     text = ""
@@ -67,6 +80,8 @@ async def cmd_issues(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 async def cmd_suggest(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     config = _get_config()
+    if not _authorized(update, config):
+        return
     all_analyzed = []
     for repo in config.github_repos:
         issues = github.list_issues(repo)
@@ -80,12 +95,13 @@ async def cmd_suggest(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 async def cmd_work(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     global _current_task
+    config = _get_config()
+    if not _authorized(update, config):
+        return
 
     if not ctx.args:
         await update.message.reply_text("Usage: /work <number> or /work <repo> <number>")
         return
-
-    config = _get_config()
 
     # Parse args: /work <number> (single repo) or /work <repo> <number>
     if len(ctx.args) == 1:
@@ -124,6 +140,9 @@ async def cmd_work(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 
 async def cmd_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    config = _get_config()
+    if not _authorized(update, config):
+        return
     if _current_task is None:
         await update.message.reply_text("No work in progress.")
     elif _current_task.done():

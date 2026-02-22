@@ -3,6 +3,7 @@ services:
     build: .
     volumes:
       - ~/.minbot:/root/.minbot
+      - ~/.claude:/root/.claude
       - workspace:/workspace
     restart: unless-stopped
 
