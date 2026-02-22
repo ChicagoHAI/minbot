@@ -38,23 +38,27 @@ async def work_on_issue(
         f"6. Commit and push the branch '{branch}'."
     )
 
-    log.info("Running claude on %s#%s ...", repo, issue['number'])
+    log.info("Running claude on %s#%s (this may take a while)...", repo, issue['number'])
 
     proc = await asyncio.create_subprocess_exec(
-        "claude", "--print", "--dangerously-skip-permissions",
+        "claude", "--dangerously-skip-permissions",
+        "--output-format", "stream-json",
         "-p", prompt,
         cwd=repo_path,
         stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.STDOUT,
+        stderr=asyncio.subprocess.PIPE,
     )
 
     lines = []
-    async for line in proc.stdout:
-        text = line.decode().rstrip()
-        lines.append(text)
-        print(f"[claude] {text}", flush=True)
+    async for raw in proc.stdout:
+        line = raw.decode().rstrip()
+        if not line:
+            continue
+        # stream-json emits JSON objects; log them as-is for visibility
+        print(f"[claude] {line}", flush=True)
+        lines.append(line)
         if on_output:
-            await on_output(text)
+            await on_output(line)
 
     await proc.wait()
     log.info("Claude finished with exit code %s", proc.returncode)
