@@ -60,8 +60,12 @@ def create_branch(repo_path: str, name: str) -> None:
 
 
 def create_pr(repo: str, title: str, body: str, branch: str) -> str:
-    """Create a pull request, return the URL."""
+    """Create a pull request or return the existing one's URL."""
     r = _get_repo(repo)
+    # Check for existing PR on this branch
+    existing = r.get_pulls(state="open", head=f"{r.owner.login}:{branch}")
+    for pr in existing:
+        return pr.html_url
     pr = r.create_pull(title=title, body=body, head=branch, base=r.default_branch)
     return pr.html_url
 

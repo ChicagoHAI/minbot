@@ -32,10 +32,11 @@ async def work_on_issue(
         f"Steps:\n"
         f"1. Read the project's CLAUDE.md and any CI config to understand the build and test setup.\n"
         f"2. Make the changes to fix the issue.\n"
-        f"3. Run the full build and test suite. Fix any failures including lint, lockfile, and type errors.\n"
+        f"3. Run the full build and test suite. Fix any failures including lint, lockfile, type errors, and dependency audit.\n"
         f"4. Merge the latest main: git fetch origin && git merge origin/main --no-edit\n"
         f"5. Run the build and tests again after the merge. Fix any issues.\n"
-        f"6. Commit and push the branch '{branch}'."
+        f"6. Check the CI config (e.g. GitHub Actions workflows) for all checks that run in CI. Run each one locally and fix any failures before pushing.\n"
+        f"7. Commit and push the branch '{branch}'."
     )
 
     log.info("Running claude on %s#%s (this may take a while)...", repo, issue['number'])

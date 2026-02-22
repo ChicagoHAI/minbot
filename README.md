@@ -1,6 +1,19 @@
-# minbot: Minimal Telegram Bot for GitHub Development
+<p align="center">
+  <img src="https://chicagohai.github.io/avatar.jpg" width="120" alt="minbot" />
+</p>
+
+<h1 align="center">minbot: Minimal Telegram Bot for GitHub Development</h1>
+
+<p align="center">
+  <a href="https://github.com/ChicagoHAI/minbot"><img src="https://img.shields.io/badge/python-3.10+-blue.svg" alt="Python" /></a>
+  <a href="https://github.com/ChicagoHAI/minbot/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License" /></a>
+</p>
 
 A lightweight Telegram bot that monitors GitHub issues, estimates difficulty/urgency, suggests what to work on, and can autonomously work on issues using Claude Code.
+
+<!-- BEGIN LINE COUNT -->
+📏 Core bot in **540 lines** of Python (run `bash core_lines.sh` to verify)
+<!-- END LINE COUNT -->
 
 ## Quick Start
 
@@ -109,3 +122,4 @@ minbot/
   scheduler.py   # Periodic issue checking and proactive suggestions
   bot.py         # Telegram bot handlers (entry point)
 ```
+

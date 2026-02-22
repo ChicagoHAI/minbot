@@ -49,3 +49,4 @@ docker compose up -d
 - Design tests to verify functionality.
 - Use `uv` for dependency management.
 - Run tests with `pytest`.
+- After changing code, run `bash core_lines.sh` to update the line count in README.md.
