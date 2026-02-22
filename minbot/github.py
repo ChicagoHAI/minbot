@@ -47,11 +47,16 @@ def get_issue(repo: str, number: int) -> dict:
 
 
 def create_branch(repo_path: str, name: str) -> None:
-    """Create and checkout a new branch."""
-    subprocess.run(
+    """Create and checkout a branch. Switch to it if it already exists."""
+    result = subprocess.run(
         ["git", "checkout", "-b", name],
-        cwd=repo_path, check=True, capture_output=True,
+        cwd=repo_path, capture_output=True,
     )
+    if result.returncode != 0:
+        subprocess.run(
+            ["git", "checkout", name],
+            cwd=repo_path, check=True, capture_output=True,
+        )
 
 
 def create_pr(repo: str, title: str, body: str, branch: str) -> str:
