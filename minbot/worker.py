@@ -30,12 +30,15 @@ async def work_on_issue(
         f"Issue #{issue['number']}: {issue['title']}\n\n"
         f"{issue.get('body', '')}\n\n"
         f"Steps:\n"
-        f"1. Make the changes to fix the issue.\n"
-        f"2. Run tests to make sure nothing is broken.\n"
-        f"3. Merge the latest main: git fetch origin && git merge origin/main --no-edit\n"
-        f"4. Run tests again after the merge.\n"
-        f"5. Commit and push the branch '{branch}'."
+        f"1. Read the project's CLAUDE.md and any CI config to understand the build and test setup.\n"
+        f"2. Make the changes to fix the issue.\n"
+        f"3. Run the full build and test suite. Fix any failures including lint, lockfile, and type errors.\n"
+        f"4. Merge the latest main: git fetch origin && git merge origin/main --no-edit\n"
+        f"5. Run the build and tests again after the merge. Fix any issues.\n"
+        f"6. Commit and push the branch '{branch}'."
     )
+
+    log.info("Running claude on %s#%s ...", repo, issue['number'])
 
     proc = await asyncio.create_subprocess_exec(
         "claude", "--print", "--dangerously-skip-permissions",
@@ -49,11 +52,12 @@ async def work_on_issue(
     async for line in proc.stdout:
         text = line.decode().rstrip()
         lines.append(text)
-        log.info("[claude] %s", text)
+        print(f"[claude] {text}", flush=True)
         if on_output:
             await on_output(text)
 
     await proc.wait()
+    log.info("Claude finished with exit code %s", proc.returncode)
 
     if proc.returncode != 0:
         return f"Claude Code exited with code {proc.returncode}\n" + "\n".join(lines[-20:])
