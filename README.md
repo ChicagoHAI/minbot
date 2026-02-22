@@ -18,7 +18,7 @@ cd minbot
 bash install.sh
 ```
 
-This installs all prerequisites (`uv`, `gh`, `node`, `claude` CLI) if missing, clones the repo, and runs `uv sync`.
+This installs prerequisites (`uv`, `claude` CLI) if missing, checks for `gh`, clones the repo, and runs `uv sync`.
 
 **2. Get your tokens**
 
