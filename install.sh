@@ -37,6 +37,9 @@ echo ""
 echo "Installing Python dependencies..."
 uv sync
 
+# Set up git hooks
+git config core.hooksPath .githooks
+
 echo ""
 echo "Done! Next steps:"
 echo "  cd ${INSTALL_DIR}"

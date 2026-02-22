@@ -1,0 +1,6 @@
+#!/bin/bash
+# Update line count in README.md before each commit
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+bash core_lines.sh
+git add README.md
