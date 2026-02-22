@@ -1,9 +1,12 @@
 """Claude Code CLI integration for working on issues."""
 
 import asyncio
+import logging
 import os
 import subprocess
 from minbot import github
+
+log = logging.getLogger(__name__)
 
 
 async def work_on_issue(
@@ -41,6 +44,7 @@ async def work_on_issue(
     async for line in proc.stdout:
         text = line.decode().rstrip()
         lines.append(text)
+        log.info("[claude] %s", text)
         if on_output:
             await on_output(text)
 
