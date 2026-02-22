@@ -47,7 +47,7 @@ def get_issue(repo: str, number: int) -> dict:
 
 
 def create_branch(repo_path: str, name: str) -> None:
-    """Create and checkout a branch. Switch to it if it already exists."""
+    """Create and checkout a branch, or switch to it and merge main."""
     result = subprocess.run(
         ["git", "checkout", "-b", name],
         cwd=repo_path, capture_output=True,
@@ -55,6 +55,10 @@ def create_branch(repo_path: str, name: str) -> None:
     if result.returncode != 0:
         subprocess.run(
             ["git", "checkout", name],
+            cwd=repo_path, check=True, capture_output=True,
+        )
+        subprocess.run(
+            ["git", "merge", "origin/main", "--no-edit"],
             cwd=repo_path, check=True, capture_output=True,
         )
 
@@ -71,8 +75,18 @@ def create_pr(repo: str, title: str, body: str, branch: str) -> str:
 
 
 def clone_repo(repo: str, path: str) -> None:
-    """Clone a repo (or pull if already cloned)."""
+    """Clone a repo, or if already cloned, checkout main and pull."""
     if os.path.exists(os.path.join(path, ".git")):
+        # Get default branch name
+        result = subprocess.run(
+            ["git", "symbolic-ref", "refs/remotes/origin/HEAD", "--short"],
+            cwd=path, capture_output=True, text=True,
+        )
+        main_branch = result.stdout.strip().removeprefix("origin/") if result.returncode == 0 else "main"
+        subprocess.run(
+            ["git", "checkout", main_branch],
+            cwd=path, check=True, capture_output=True,
+        )
         subprocess.run(
             ["git", "pull"], cwd=path, check=True, capture_output=True,
         )
