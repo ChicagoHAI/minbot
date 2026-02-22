@@ -44,9 +44,23 @@ Open Telegram and send `/start` to your bot.
 
 ## Running without Docker
 
+One-liner:
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ChicagoHAI/minbot/main/install.sh | bash
+```
+
+Or clone and install manually:
+
+```bash
+git clone git@github.com:ChicagoHAI/minbot.git
 cd minbot
+bash install.sh
+```
+
+Then configure and run:
+
+```bash
 uv run python -m minbot setup      # interactive config
 uv run minbot                      # start the bot
 ```
