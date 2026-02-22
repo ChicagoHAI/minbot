@@ -21,10 +21,18 @@ def setup():
         print("At least one repo is required.")
         sys.exit(1)
 
+    interval = input("\nCheck interval in hours [6]: ").strip()
+    check_interval_hours = int(interval) if interval else 6
+
+    workspace = input("Workspace directory [/workspace]: ").strip()
+    workspace_dir = workspace if workspace else "/workspace"
+
     config = Config(
         telegram_token=telegram_token,
         github_token=github_token,
         github_repos=repos,
+        check_interval_hours=check_interval_hours,
+        workspace_dir=workspace_dir,
     )
     save_config(config)
     print(f"\nConfig saved to {CONFIG_PATH}")
