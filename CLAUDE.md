@@ -8,7 +8,7 @@ Focused exclusively on coding development. Keep it lightweight.
 bash install.sh
 ```
 
-This installs all prerequisites (`uv`, `gh`, `node`, `claude` CLI) if missing, then runs `uv sync`. After that:
+This installs prerequisites (`uv`, `claude` CLI) if missing, then runs `uv sync`. After that:
 
 ```
 uv run python -m minbot setup   # configure Telegram token, chat ID, repos
@@ -23,9 +23,9 @@ docker compose up -d
 
 ## Prerequisites
 
-- `gh` CLI (authenticated)
 - `claude` CLI (for issue analysis when no Anthropic API key is configured)
 - A Telegram bot token (create via @BotFather)
+- A GitHub token (for API access)
 
 ## Structure
 

@@ -2,10 +2,10 @@ services:
   minbot:
     build: .
     volumes:
-      - config:/root/.minbot
+      - ~/.minbot:/root/.minbot
+      - ~/.ssh:/root/.ssh:ro
       - workspace:/workspace
     restart: unless-stopped
 
 volumes:
-  config:
   workspace:

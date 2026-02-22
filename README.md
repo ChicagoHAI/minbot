@@ -4,23 +4,7 @@ A lightweight Telegram bot that monitors GitHub issues, estimates difficulty/urg
 
 ## Quick Start
 
-**1. Install**
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/ChicagoHAI/minbot/main/install.sh | bash
-```
-
-Or clone and run locally:
-
-```bash
-git clone git@github.com:ChicagoHAI/minbot.git
-cd minbot
-bash install.sh
-```
-
-This installs prerequisites (`uv`, `claude` CLI) if missing, checks for `gh`, clones the repo, and runs `uv sync`.
-
-**2. Get your tokens**
+**1. Get your tokens**
 
 | Token | Where to get it |
 |-------|----------------|
@@ -28,36 +12,44 @@ This installs prerequisites (`uv`, `claude` CLI) if missing, checks for `gh`, cl
 | Telegram Bot Token | Talk to [@BotFather](https://t.me/BotFather) on Telegram |
 | Telegram Chat ID | Send a message to your bot, then visit `https://api.telegram.org/bot<TOKEN>/getUpdates` |
 
-**3. Configure**
+**2. Clone and configure**
 
 ```bash
-uv run python -m minbot setup
+git clone git@github.com:ChicagoHAI/minbot.git
+cd minbot
 ```
 
-This prompts for your GitHub token, Telegram token, chat ID, and repos (in `owner/repo` format). Config is saved to `~/.minbot/config.json`.
-
-You can also create the config file manually:
+Create `~/.minbot/config.json`:
 
 ```json
 {
   "telegram_token": "your-telegram-bot-token",
   "telegram_chat_id": 123456789,
   "github_token": "ghp_...",
-  "github_repos": ["owner/repo", "owner/repo2"],
-  "check_interval_hours": 6,
-  "workspace_dir": "/workspace"
+  "github_repos": ["owner/repo", "owner/repo2"]
 }
 ```
 
 Optionally add `"anthropic_api_key": "sk-ant-..."` to use the Anthropic SDK instead of the `claude` CLI for issue analysis.
 
-**5. Run**
+**3. Run**
 
 ```bash
-uv run minbot
+docker compose up --build -d
 ```
 
+This builds the image (installs Python deps, Claude CLI) and starts the bot. Your config and SSH keys are mounted into the container automatically.
+
 Open Telegram and send `/start` to your bot.
+
+## Running without Docker
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ChicagoHAI/minbot/main/install.sh | bash
+cd minbot
+uv run python -m minbot setup      # interactive config
+uv run minbot                      # start the bot
+```
 
 ## Commands
 
@@ -88,23 +80,6 @@ minbot uses Claude to analyze issues and suggest what to work on. It supports tw
 - **Claude CLI** (default): Calls the `claude` CLI as a subprocess. Requires `claude` to be installed and authenticated.
 - **Anthropic SDK**: Set `anthropic_api_key` in config.
 
-## Docker
-
-```bash
-docker compose up --build
-```
-
-Mount your config into the container or set environment variables. Edit `docker-compose.yml` to add:
-
-```yaml
-services:
-  minbot:
-    environment:
-      - ANTHROPIC_API_KEY=sk-ant-...
-    volumes:
-      - ~/.minbot:/root/.minbot
-```
-
 ## Running Tests
 
 ```bash
@@ -116,7 +91,7 @@ uv run pytest tests/ -v
 ```
 minbot/
   config.py      # Config loading from ~/.minbot/config.json
-  github.py      # GitHub operations via gh CLI
+  github.py      # GitHub operations via PyGithub + git
   agent.py       # LLM reasoning via SDK or CLI (issue triage, suggestions)
   worker.py      # Claude Code subprocess for coding
   scheduler.py   # Periodic issue checking and proactive suggestions

@@ -7,8 +7,6 @@ INSTALL_DIR="minbot"
 echo "minbot installer"
 echo ""
 
-missing=()
-
 # Install uv (user-local, no sudo needed)
 if ! command -v uv &>/dev/null; then
     echo "Installing uv..."
@@ -18,28 +16,12 @@ else
     echo "uv: found"
 fi
 
-# Check gh CLI
-if ! command -v gh &>/dev/null; then
-    missing+=("gh (https://cli.github.com)")
-else
-    echo "gh: found"
-fi
-
 # Install Claude Code CLI
 if ! command -v claude &>/dev/null; then
     echo "Installing Claude Code CLI..."
     curl -fsSL https://claude.ai/install.sh | bash
 else
     echo "claude: found"
-fi
-
-if [[ ${#missing[@]} -gt 0 ]]; then
-    echo ""
-    echo "Missing dependencies (install these first):"
-    for dep in "${missing[@]}"; do
-        echo "  - $dep"
-    done
-    exit 1
 fi
 
 # Clone repo if not already inside it

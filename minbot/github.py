@@ -1,51 +1,47 @@
-"""GitHub operations via `gh` CLI."""
+"""GitHub operations via PyGithub + git CLI."""
 
-import json
 import os
 import subprocess
+from github import Github
 
-_token: str | None = None
+_client: Github | None = None
 
 
 def set_token(token: str) -> None:
-    """Set the GitHub token used for all gh/git operations."""
-    global _token
-    _token = token
+    """Set the GitHub token used for API operations."""
+    global _client
+    _client = Github(token)
 
 
-def _env() -> dict[str, str]:
-    """Return environment with GH_TOKEN set."""
-    env = os.environ.copy()
-    if _token:
-        env["GH_TOKEN"] = _token
-    return env
-
-
-def _run(args: list[str]) -> str:
-    result = subprocess.run(
-        ["gh"] + args, capture_output=True, text=True, check=True, env=_env(),
-    )
-    return result.stdout.strip()
+def _get_repo(repo: str):
+    return _client.get_repo(repo)
 
 
 def list_issues(repo: str) -> list[dict]:
     """List open issues for a repo."""
-    out = _run([
-        "issue", "list", "--repo", repo,
-        "--state", "open", "--json",
-        "number,title,body,labels,createdAt,comments",
-        "--limit", "30",
-    ])
-    return json.loads(out) if out else []
+    issues = _get_repo(repo).get_issues(state="open")
+    return [
+        {
+            "number": i.number,
+            "title": i.title,
+            "body": i.body or "",
+            "labels": [l.name for l in i.labels],
+            "createdAt": i.created_at.isoformat(),
+        }
+        for i in issues[:30]
+    ]
 
 
 def get_issue(repo: str, number: int) -> dict:
     """Get a single issue with full details."""
-    out = _run([
-        "issue", "view", str(number), "--repo", repo,
-        "--json", "number,title,body,labels,comments,createdAt",
-    ])
-    return json.loads(out)
+    i = _get_repo(repo).get_issue(number)
+    return {
+        "number": i.number,
+        "title": i.title,
+        "body": i.body or "",
+        "labels": [l.name for l in i.labels],
+        "createdAt": i.created_at.isoformat(),
+    }
 
 
 def create_branch(repo_path: str, name: str) -> None:
@@ -58,12 +54,9 @@ def create_branch(repo_path: str, name: str) -> None:
 
 def create_pr(repo: str, title: str, body: str, branch: str) -> str:
     """Create a pull request, return the URL."""
-    out = _run([
-        "pr", "create", "--repo", repo,
-        "--title", title, "--body", body,
-        "--head", branch,
-    ])
-    return out
+    r = _get_repo(repo)
+    pr = r.create_pull(title=title, body=body, head=branch, base=r.default_branch)
+    return pr.html_url
 
 
 def clone_repo(repo: str, path: str) -> None:
