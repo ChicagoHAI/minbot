@@ -7,7 +7,7 @@ CONFIG_PATH = Path.home() / ".minbot" / "config.json"
 
 class Config(BaseModel):
     telegram_token: str
-    telegram_chat_id: int
+    telegram_chat_id: int | None = None
     github_token: str
     github_repos: list[str]
     anthropic_api_key: str | None = None

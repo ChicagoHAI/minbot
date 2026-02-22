@@ -7,7 +7,7 @@ from telegram.ext import (
     Application, CommandHandler, ContextTypes,
 )
 from minbot import github, agent, worker, scheduler
-from minbot.config import load_config
+from minbot.config import load_config, save_config
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -20,6 +20,14 @@ def _get_config():
 
 
 async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    config = _get_config()
+    chat_id = update.effective_chat.id
+
+    if config.telegram_chat_id != chat_id:
+        config.telegram_chat_id = chat_id
+        save_config(config)
+        log.info("Saved chat_id %s", chat_id)
+
     await update.message.reply_text(
         "minbot is running. Commands:\n"
         "/issues - list issues with estimates\n"
@@ -137,7 +145,9 @@ def main():
     app.add_handler(CommandHandler("repos", cmd_repos))
 
     async def send_message(text: str):
-        await app.bot.send_message(chat_id=config.telegram_chat_id, text=text)
+        c = _get_config()
+        if c.telegram_chat_id:
+            await app.bot.send_message(chat_id=c.telegram_chat_id, text=text)
 
     async def post_init(application):
         scheduler.start(config, send_message)

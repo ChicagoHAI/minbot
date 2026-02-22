@@ -39,8 +39,12 @@ def _fake_config_multi():
 
 
 @pytest.mark.asyncio
-async def test_cmd_start():
+@patch("minbot.bot.save_config")
+@patch("minbot.bot._get_config")
+async def test_cmd_start(mock_config, mock_save):
+    mock_config.return_value = _fake_config()
     update = _make_update()
+    update.effective_chat.id = 12345
     await cmd_start(update, _make_context())
     update.message.reply_text.assert_called_once()
     text = update.message.reply_text.call_args[0][0]

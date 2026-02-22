@@ -8,7 +8,6 @@ def setup():
 
     github_token = input("GitHub token: ").strip()
     telegram_token = input("Telegram bot token: ").strip()
-    telegram_chat_id = int(input("Telegram chat ID: ").strip())
 
     repos = []
     print("\nAdd GitHub repos (owner/repo format). Empty line to finish.")
@@ -24,13 +23,12 @@ def setup():
 
     config = Config(
         telegram_token=telegram_token,
-        telegram_chat_id=telegram_chat_id,
         github_token=github_token,
         github_repos=repos,
     )
     save_config(config)
     print(f"\nConfig saved to {CONFIG_PATH}")
-    print("Run `minbot` or `uv run minbot` to start the bot.")
+    print("Start the bot and send /start in Telegram to complete setup.")
 
 
 if __name__ == "__main__":

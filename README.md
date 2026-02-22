@@ -10,7 +10,6 @@ A lightweight Telegram bot that monitors GitHub issues, estimates difficulty/urg
 |-------|----------------|
 | GitHub Token | [github.com/settings/tokens](https://github.com/settings/tokens) (scopes: `repo`) |
 | Telegram Bot Token | Talk to [@BotFather](https://t.me/BotFather) on Telegram |
-| Telegram Chat ID | Send a message to your bot, then visit `https://api.telegram.org/bot<TOKEN>/getUpdates` |
 
 **2. Clone and configure**
 
@@ -24,7 +23,6 @@ Create `~/.minbot/config.json`:
 ```json
 {
   "telegram_token": "your-telegram-bot-token",
-  "telegram_chat_id": 123456789,
   "github_token": "ghp_...",
   "github_repos": ["owner/repo", "owner/repo2"]
 }
@@ -40,7 +38,7 @@ docker compose up --build -d
 
 This builds the image (installs Python deps, Claude CLI) and starts the bot. Your config and SSH keys are mounted into the container automatically.
 
-Open Telegram and send `/start` to your bot.
+Open Telegram and send `/start` to your bot. The bot captures your chat ID automatically on first interaction.
 
 ## Running without Docker
 
