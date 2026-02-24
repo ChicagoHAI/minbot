@@ -58,11 +58,12 @@ async def cmd_repos(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 def _resolve_repos(config, args) -> list[str]:
     """Return repo list filtered by optional arg, or all configured repos."""
     if args:
-        repo = args[0]
-        if repo in config.github_repos:
-            return [repo]
+        query = args[0].lower()
+        matches = [r for r in config.github_repos if r.lower() == query]
+        if matches:
+            return matches
         # Try partial match (e.g. "repo" matches "owner/repo")
-        matches = [r for r in config.github_repos if r.endswith(f"/{repo}")]
+        matches = [r for r in config.github_repos if r.lower().endswith(f"/{query}")]
         if matches:
             return matches
         return []
