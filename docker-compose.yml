@@ -1,6 +1,8 @@
 services:
   minbot:
     build: .
+    env_file:
+      - ~/.minbot/.env
     volumes:
       - ~/.minbot:/root/.minbot
       - ~/.claude:/root/.claude

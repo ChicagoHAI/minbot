@@ -1,21 +1,35 @@
 """Periodic issue checking and proactive suggestions."""
 
+import json
+from pathlib import Path
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from minbot import github, agent
 
 
 _scheduler = None
-_known_issues: dict[str, set[int]] = {}
+_KNOWN_ISSUES_PATH = Path.home() / ".minbot" / "known_issues.json"
+
+
+def _load_known_issues() -> dict[str, set[int]]:
+    if _KNOWN_ISSUES_PATH.exists():
+        data = json.loads(_KNOWN_ISSUES_PATH.read_text())
+        return {repo: set(nums) for repo, nums in data.items()}
+    return {}
+
+
+def _save_known_issues(known: dict[str, set[int]]) -> None:
+    data = {repo: sorted(nums) for repo, nums in known.items()}
+    _KNOWN_ISSUES_PATH.write_text(json.dumps(data))
 
 
 async def _check_issues(config, send_message):
     """Check for new issues across all repos and notify via Telegram."""
-    global _known_issues
+    known = _load_known_issues()
 
     for repo in config.github_repos:
         issues = github.list_issues(repo)
         current = {i["number"] for i in issues}
-        prev = _known_issues.get(repo, set())
+        prev = known.get(repo, set())
         new_numbers = current - prev
 
         if prev and new_numbers:
@@ -30,7 +44,9 @@ async def _check_issues(config, send_message):
                 )
             await send_message(text)
 
-        _known_issues[repo] = current
+        known[repo] = current
+
+    _save_known_issues(known)
 
 
 async def _send_suggestions(config, send_message):
@@ -61,7 +77,7 @@ def start(config, send_message) -> AsyncIOScheduler:
     )
     _scheduler.add_job(
         _send_suggestions, "interval",
-        hours=24,
+        hours=config.suggest_interval_hours,
         args=[config, send_message],
     )
     _scheduler.start()

@@ -170,6 +170,7 @@ def main():
 
     async def post_init(application):
         scheduler.start(config, send_message)
+        await send_message("minbot is ready.")
 
     app.post_init = post_init
 

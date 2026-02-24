@@ -12,6 +12,7 @@ class Config(BaseModel):
     github_repos: list[str]
     anthropic_api_key: str | None = None
     check_interval_hours: int = 6
+    suggest_interval_hours: int = 24
     workspace_dir: str = "/workspace"
 
 

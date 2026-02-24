@@ -12,7 +12,7 @@
 A lightweight Telegram bot that monitors GitHub issues, estimates difficulty/urgency, suggests what to work on, and can autonomously work on issues using Claude Code.
 
 <!-- BEGIN LINE COUNT -->
-📏 Core bot in **582 lines** of Python (run `bash core_lines.sh` to verify)
+📏 Core bot in **600 lines** of Python (run `bash core_lines.sh` to verify)
 <!-- END LINE COUNT -->
 
 ## Quick Start
@@ -104,6 +104,31 @@ minbot uses Claude to analyze issues and suggest what to work on. It supports tw
 
 - **Claude CLI** (default): Calls the `claude` CLI as a subprocess. Requires `claude` to be installed and authenticated.
 - **Anthropic SDK**: Set `anthropic_api_key` in config.
+
+## Configuration
+
+All config lives in `~/.minbot/`. The full set of options in `config.json`:
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `telegram_token` | (required) | Telegram bot token |
+| `github_token` | (required) | GitHub token with `repo` scope |
+| `github_repos` | (required) | List of repos in `owner/repo` format |
+| `anthropic_api_key` | `null` | If set, uses Anthropic SDK instead of Claude CLI |
+| `check_interval_hours` | `6` | How often to check for new issues |
+| `suggest_interval_hours` | `24` | How often to send work suggestions |
+| `workspace_dir` | `"/workspace"` | Where repos are cloned |
+
+### Environment variables for `/work`
+
+When Claude works on an issue, it may need API keys to run tests or experiments. Create `~/.minbot/.env` with any variables your projects need:
+
+```
+OPENROUTER_API_KEY=sk-or-...
+DATABASE_URL=postgres://...
+```
+
+These are automatically loaded into the Docker container and available to the Claude worker process.
 
 ## Running Tests
 
