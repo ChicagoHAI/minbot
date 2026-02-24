@@ -86,7 +86,7 @@ async def _send_suggestions(config, send_message):
 def start(config, send_message) -> AsyncIOScheduler:
     """Start the periodic issue checker and suggestion jobs."""
     global _scheduler
-    _scheduler = AsyncIOScheduler()
+    _scheduler = AsyncIOScheduler(job_defaults={"misfire_grace_time": 3600})
     _scheduler.add_job(
         _check_issues, "interval",
         hours=config.check_interval_hours,
