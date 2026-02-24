@@ -4,11 +4,12 @@ import asyncio
 import logging
 import os
 import subprocess
+from pathlib import Path
 from minbot import github
 
 log = logging.getLogger(__name__)
 
-LOGS_DIR = os.path.join(os.path.dirname(__file__), "..", "logs", "claude")
+LOGS_DIR = os.path.join(str(Path.home()), ".minbot", "logs", "claude")
 
 
 async def work_on_issue(

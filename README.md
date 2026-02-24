@@ -12,7 +12,7 @@
 A lightweight Telegram bot that monitors GitHub issues, estimates difficulty/urgency, suggests what to work on, and can autonomously work on issues using Claude Code.
 
 <!-- BEGIN LINE COUNT -->
-📏 Core bot in **667 lines** of Python (run `bash core_lines.sh` to verify)
+📏 Core bot in **668 lines** of Python (run `bash core_lines.sh` to verify)
 <!-- END LINE COUNT -->
 
 ## Quick Start
@@ -46,10 +46,10 @@ Optionally add `"anthropic_api_key": "sk-ant-..."` to use the Anthropic SDK inst
 **3. Run**
 
 ```bash
-docker compose up --build -d
+USER_UID=$(id -u) USER_GID=$(id -g) docker compose up --build -d
 ```
 
-This builds the image (installs Python deps, Claude CLI) and starts the bot. Your config is mounted into the container automatically.
+This builds the image with your user ID (so mounted files are accessible), installs Python deps and the Claude CLI, and starts the bot.
 
 Open Telegram and send `/start` to your bot. The first user to `/start` claims the bot — their chat ID is saved and all commands from other users are ignored.
 
@@ -117,7 +117,9 @@ All config lives in `~/.minbot/`. The full set of options in `config.json`:
 | `anthropic_api_key` | `null` | If set, uses Anthropic SDK instead of Claude CLI |
 | `check_interval_hours` | `6` | How often to check for new issues |
 | `suggest_interval_hours` | `24` | How often to send work suggestions |
-| `workspace_dir` | `"/workspace"` | Where repos are cloned |
+| `workspace_dir` | `"/workspace"` | Where repos are cloned for `/work` |
+
+When running with Docker, `workspace_dir` must be a path inside the container. The default `/workspace` is backed by a Docker volume and persists across restarts. When running without Docker, set it to a local path (e.g. `"/home/you/minbot_workspace"`).
 
 ### Environment variables for `/work`
 
