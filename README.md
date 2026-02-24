@@ -12,7 +12,7 @@
 A lightweight Telegram bot that monitors GitHub issues, estimates difficulty/urgency, suggests what to work on, and can autonomously work on issues using Claude Code.
 
 <!-- BEGIN LINE COUNT -->
-📏 Core bot in **600 lines** of Python (run `bash core_lines.sh` to verify)
+📏 Core bot in **626 lines** of Python (run `bash core_lines.sh` to verify)
 <!-- END LINE COUNT -->
 
 ## Quick Start
@@ -81,8 +81,8 @@ uv run minbot                      # start the bot
 | Command | Description |
 |---------|-------------|
 | `/start` | Show available commands |
-| `/issues` | List open issues with difficulty/urgency estimates |
-| `/suggest` | Get a recommendation on what to work on next |
+| `/issues [repo]` | List open issues with difficulty/urgency estimates |
+| `/suggest [repo]` | Get a recommendation on what to work on next |
 | `/work <number>` | Work on an issue (single repo) |
 | `/work <repo> <number>` | Work on an issue in a specific repo |
 | `/repos` | List configured repos |

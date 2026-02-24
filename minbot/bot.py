@@ -55,14 +55,34 @@ async def cmd_repos(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(text)
 
 
+def _resolve_repos(config, args) -> list[str]:
+    """Return repo list filtered by optional arg, or all configured repos."""
+    if args:
+        repo = args[0]
+        if repo in config.github_repos:
+            return [repo]
+        # Try partial match (e.g. "repo" matches "owner/repo")
+        matches = [r for r in config.github_repos if r.endswith(f"/{repo}")]
+        if matches:
+            return matches
+        return []
+    return config.github_repos
+
+
 async def cmd_issues(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     config = _get_config()
     if not _authorized(update, config):
         return
+
+    repos = _resolve_repos(config, ctx.args)
+    if not repos:
+        await update.message.reply_text(f"Repo not found. Configured: {', '.join(config.github_repos)}")
+        return
+
     await update.message.reply_text("Fetching issues...")
 
     text = ""
-    for repo in config.github_repos:
+    for repo in repos:
         issues = github.list_issues(repo)
         if not issues:
             continue
@@ -82,8 +102,14 @@ async def cmd_suggest(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     config = _get_config()
     if not _authorized(update, config):
         return
+
+    repos = _resolve_repos(config, ctx.args)
+    if not repos:
+        await update.message.reply_text(f"Repo not found. Configured: {', '.join(config.github_repos)}")
+        return
+
     all_analyzed = []
-    for repo in config.github_repos:
+    for repo in repos:
         issues = github.list_issues(repo)
         analyzed = agent.analyze_issues(issues, config.anthropic_api_key)
         for a in analyzed:
