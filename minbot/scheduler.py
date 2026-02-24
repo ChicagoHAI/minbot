@@ -66,11 +66,15 @@ async def _send_suggestions(config, send_message):
     try:
         all_analyzed = []
         for repo in config.github_repos:
-            issues = github.list_issues(repo)
-            analyzed = agent.analyze_issues(issues, config.anthropic_api_key)
-            for a in analyzed:
-                a["repo"] = repo
-            all_analyzed.extend(analyzed)
+            try:
+                issues = github.list_issues(repo)
+                analyzed = agent.analyze_issues(issues, config.anthropic_api_key)
+                for a in analyzed:
+                    a["repo"] = repo
+                all_analyzed.extend(analyzed)
+            except Exception as e:
+                log.error("Failed to analyze %s: %s", repo, e)
+                await send_message(f"Failed to analyze {repo}: {e}")
 
         if not all_analyzed:
             await send_message("No open issues to suggest.")

@@ -1,7 +1,10 @@
 """LLM reasoning for issue triage and suggestions."""
 
 import json
+import logging
 import subprocess
+
+log = logging.getLogger(__name__)
 
 try:
     import anthropic
@@ -58,7 +61,15 @@ Issues:
 
 Return a JSON array of objects with keys: number, title, difficulty, urgency, summary."""
 
-    return json.loads(_call(prompt, api_key, SYSTEM))
+    raw = _call(prompt, api_key, SYSTEM)
+    log.info("analyze_issues raw response (first 500 chars): %s", raw[:500])
+    # Strip markdown fences if present
+    text = raw.strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[1]  # remove ```json line
+    if text.endswith("```"):
+        text = text[:-3]
+    return json.loads(text)
 
 
 def suggest_next(issues: list[dict], api_key: str | None = None) -> str:
