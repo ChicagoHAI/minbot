@@ -18,9 +18,14 @@ def _call_cli(prompt: str, system: str | None = None) -> str:
     full_prompt = f"{system}\n\n{prompt}" if system else prompt
     result = subprocess.run(
         ["claude", "--print", "-p", full_prompt],
-        capture_output=True, text=True, check=True,
+        capture_output=True, text=True,
     )
-    return result.stdout.strip()
+    if result.returncode != 0:
+        raise RuntimeError(f"claude CLI failed (exit {result.returncode}): {result.stderr.strip()}")
+    output = result.stdout.strip()
+    if not output:
+        raise RuntimeError(f"claude CLI returned empty output. stderr: {result.stderr.strip()}")
+    return output
 
 
 def _call(prompt: str, api_key: str | None = None, system: str | None = None) -> str:
