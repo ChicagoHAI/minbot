@@ -21,19 +21,21 @@ def _get_repo(repo: str):
 
 def list_issues(repo: str, include_prs: bool = False) -> list[dict]:
     """List open issues for a repo. Optionally include pull requests."""
-    issues = _get_repo(repo).get_issues(state="open")
-    return [
-        {
+    results = []
+    for i in _get_repo(repo).get_issues(state="open"):
+        if not include_prs and i.pull_request is not None:
+            continue
+        results.append({
             "number": i.number,
             "title": i.title,
             "body": i.body or "",
             "labels": [l.name for l in i.labels],
             "createdAt": i.created_at.isoformat(),
             "is_pr": i.pull_request is not None,
-        }
-        for i in issues[:30]
-        if include_prs or i.pull_request is None
-    ]
+        })
+        if len(results) >= 30:
+            break
+    return results
 
 
 def get_issue(repo: str, number: int) -> dict:
