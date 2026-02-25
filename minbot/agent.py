@@ -44,22 +44,27 @@ def _call(prompt: str, api_key: str | None = None, system: str | None = None) ->
     return _call_cli(prompt, system)
 
 
-def analyze_issues(issues: list[dict], api_key: str | None = None) -> list[dict]:
+def analyze_issues(issues: list[dict], api_key: str | None = None, prs: list[dict] | None = None) -> list[dict]:
     """Estimate difficulty and urgency for each issue.
 
-    Returns list of {number, title, difficulty, urgency, summary}.
+    Returns list of {number, title, difficulty, urgency, summary, has_pr}.
     """
     if not issues:
         return []
+    pr_section = ""
+    if prs:
+        pr_section = f"\n\nOpen pull requests (issues with PRs are already being worked on):\n{json.dumps(prs, indent=2, default=str)}\n"
+
     prompt = f"""Analyze these GitHub issues. For each, estimate:
 - difficulty: easy / medium / hard
 - urgency: low / medium / high
 - summary: one-line summary of what needs to be done
+- has_pr: true if an open PR already addresses this issue, false otherwise
 
 Issues:
-{json.dumps(issues, indent=2, default=str)}
+{json.dumps(issues, indent=2, default=str)}{pr_section}
 
-Return a JSON array of objects with keys: number, title, difficulty, urgency, summary."""
+Return a JSON array of objects with keys: number, title, difficulty, urgency, summary, has_pr."""
 
     raw = _call(prompt, api_key, SYSTEM)
     log.info("analyze_issues raw response (first 500 chars): %s", raw[:500])
@@ -76,7 +81,7 @@ def suggest_next(issues: list[dict], api_key: str | None = None) -> str:
     """Suggest which issue to work on next. Returns readable text."""
     if not issues:
         return "No open issues found."
-    prompt = f"""Given these GitHub issues with analysis, suggest which one to work on next and why. Be concise (2-3 sentences).
+    prompt = f"""Given these GitHub issues with analysis, suggest which one to work on next and why. Skip issues that already have PRs (has_pr: true). Be concise (2-3 sentences).
 
 Issues:
 {json.dumps(issues, indent=2, default=str)}"""

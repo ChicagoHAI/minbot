@@ -59,18 +59,17 @@ def test_list_issues_empty():
     assert result == []
 
 
-def test_list_prs():
+def test_list_issues_include_prs():
     client = _setup_client()
     repo = client.get_repo.return_value
-    repo.get_pulls.return_value = [
-        _mock_issue(10, "PR: Fix bug", "Fixes #1"),
-        _mock_issue(11, "PR: Add feature", "Adds feature"),
+    repo.get_issues.return_value = [
+        _mock_issue(1, "Bug fix", "Fix the bug"),
+        _mock_issue(2, "PR: Update deps", "Update", is_pr=True),
     ]
-    result = github.list_prs("owner/repo")
+    result = github.list_issues("owner/repo", include_prs=True)
     assert len(result) == 2
-    assert result[0]["number"] == 10
-    assert result[1]["title"] == "PR: Add feature"
-    repo.get_pulls.assert_called_once_with(state="open")
+    assert result[0]["is_pr"] is False
+    assert result[1]["is_pr"] is True
 
 
 def test_get_issue():

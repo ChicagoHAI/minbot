@@ -85,10 +85,12 @@ async def cmd_issues(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     text = ""
     for repo in repos:
-        issues = github.list_issues(repo)
+        all_items = github.list_issues(repo, include_prs=True)
+        issues = [i for i in all_items if not i["is_pr"]]
+        prs = [i for i in all_items if i["is_pr"]]
         if not issues:
             continue
-        analyzed = agent.analyze_issues(issues, config.anthropic_api_key)
+        analyzed = agent.analyze_issues(issues, config.anthropic_api_key, prs)
         text += f"[{repo}]\n"
         for a in analyzed:
             text += (
@@ -112,7 +114,7 @@ async def cmd_prs(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     text = ""
     for repo in repos:
-        prs = github.list_prs(repo)
+        prs = [i for i in github.list_issues(repo, include_prs=True) if i["is_pr"]]
         if not prs:
             continue
         text += f"[{repo}]\n"
@@ -139,10 +141,12 @@ async def cmd_suggest(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     all_analyzed = []
     for repo in repos:
-        issues = github.list_issues(repo)
+        all_items = github.list_issues(repo, include_prs=True)
+        issues = [i for i in all_items if not i["is_pr"]]
+        prs = [i for i in all_items if i["is_pr"]]
         if not issues:
             continue
-        analyzed = agent.analyze_issues(issues, config.anthropic_api_key)
+        analyzed = agent.analyze_issues(issues, config.anthropic_api_key, prs)
         for a in analyzed:
             a["repo"] = repo
         all_analyzed.extend(analyzed)

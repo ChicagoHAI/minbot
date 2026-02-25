@@ -32,7 +32,9 @@ async def _check_issues(config, send_message):
         found_new = False
 
         for repo in config.github_repos:
-            issues = github.list_issues(repo)
+            all_items = github.list_issues(repo, include_prs=True)
+            issues = [i for i in all_items if not i["is_pr"]]
+            prs = [i for i in all_items if i["is_pr"]]
             current = {i["number"] for i in issues}
             prev = known.get(repo, set())
             new_numbers = current - prev
@@ -40,7 +42,7 @@ async def _check_issues(config, send_message):
             if repo in known and new_numbers:
                 found_new = True
                 new_issues = [i for i in issues if i["number"] in new_numbers]
-                analyzed = agent.analyze_issues(new_issues, config.anthropic_api_key)
+                analyzed = agent.analyze_issues(new_issues, config.anthropic_api_key, prs)
                 text = f"New issues in {repo}:\n\n"
                 for a in analyzed:
                     text += (
@@ -67,8 +69,10 @@ async def _send_suggestions(config, send_message):
         all_analyzed = []
         for repo in config.github_repos:
             try:
-                issues = github.list_issues(repo)
-                analyzed = agent.analyze_issues(issues, config.anthropic_api_key)
+                all_items = github.list_issues(repo, include_prs=True)
+                issues = [i for i in all_items if not i["is_pr"]]
+                prs = [i for i in all_items if i["is_pr"]]
+                analyzed = agent.analyze_issues(issues, config.anthropic_api_key, prs)
                 for a in analyzed:
                     a["repo"] = repo
                 all_analyzed.extend(analyzed)

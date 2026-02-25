@@ -94,8 +94,8 @@ async def test_cmd_issues(mock_gh, mock_agent, mock_config):
 @patch("minbot.bot.github")
 async def test_cmd_prs(mock_gh, mock_config):
     mock_config.return_value = _fake_config()
-    mock_gh.list_prs.return_value = [
-        {"number": 10, "title": "Fix bug", "labels": ["bugfix"], "createdAt": "2024-01-01T00:00:00"},
+    mock_gh.list_issues.return_value = [
+        {"number": 10, "title": "Fix bug", "labels": ["bugfix"], "createdAt": "2024-01-01T00:00:00", "is_pr": True},
     ]
 
     update = _make_update()
@@ -112,7 +112,7 @@ async def test_cmd_prs(mock_gh, mock_config):
 @patch("minbot.bot.github")
 async def test_cmd_prs_empty(mock_gh, mock_config):
     mock_config.return_value = _fake_config()
-    mock_gh.list_prs.return_value = []
+    mock_gh.list_issues.return_value = []
 
     update = _make_update()
     await cmd_prs(update, _make_context())

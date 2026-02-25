@@ -77,10 +77,22 @@ async def work_on_issue(
         ["git", "push", "-u", "origin", branch],
         cwd=repo_path, check=True, capture_output=True,
     )
+    # Use the last portion of Claude's output as the PR summary
+    summary = output.strip()[-3000:] if output.strip() else "No output captured."
+    pr_body = (
+        f"Closes #{issue['number']}\n\n"
+        f"## Issue\n\n"
+        f"**{issue['title']}**\n\n"
+        f"{issue.get('body', '')[:500]}\n\n"
+        f"## Changes\n\n"
+        f"{summary}\n\n"
+        f"---\n"
+        f"Automated by [minbot](https://github.com/ChicagoHAI/minbot) using Claude Code."
+    )
     pr_url = github.create_pr(
         repo,
         title=f"Fix #{issue['number']}: {issue['title']}",
-        body=f"Closes #{issue['number']}\n\nAutomated by minbot using Claude Code.",
+        body=pr_body,
         branch=branch,
     )
 
