@@ -181,3 +181,20 @@ async def test_cmd_suggest(mock_gh, mock_agent, mock_config):
 
     text = update.message.reply_text.call_args[0][0]
     assert "#1" in text
+
+
+@pytest.mark.asyncio
+@patch("minbot.bot._get_config")
+@patch("minbot.bot.agent")
+@patch("minbot.bot.github")
+async def test_cmd_suggest_empty(mock_gh, mock_agent, mock_config):
+    mock_config.return_value = _fake_config()
+    mock_gh.list_issues.return_value = []
+
+    update = _make_update()
+    await cmd_suggest(update, _make_context())
+
+    text = update.message.reply_text.call_args[0][0]
+    assert "No open issues" in text
+    mock_agent.analyze_issues.assert_not_called()
+    mock_agent.suggest_next.assert_not_called()
