@@ -37,7 +37,7 @@ async def _check_issues(config, send_message):
             prev = known.get(repo, set())
             new_numbers = current - prev
 
-            if prev and new_numbers:
+            if repo in known and new_numbers:
                 found_new = True
                 new_issues = [i for i in issues if i["number"] in new_numbers]
                 analyzed = agent.analyze_issues(new_issues, config.anthropic_api_key)

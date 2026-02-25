@@ -140,10 +140,17 @@ async def cmd_suggest(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     all_analyzed = []
     for repo in repos:
         issues = github.list_issues(repo)
+        if not issues:
+            continue
         analyzed = agent.analyze_issues(issues, config.anthropic_api_key)
         for a in analyzed:
             a["repo"] = repo
         all_analyzed.extend(analyzed)
+
+    if not all_analyzed:
+        await update.message.reply_text("No open issues to suggest.")
+        return
+
     suggestion = agent.suggest_next(all_analyzed, config.anthropic_api_key)
     await update.message.reply_text(suggestion)
 
