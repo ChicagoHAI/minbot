@@ -32,9 +32,7 @@ async def _check_issues(config, send_message):
         found_new = False
 
         for repo in config.github_repos:
-            all_items = github.list_issues(repo, include_prs=True)
-            issues = [i for i in all_items if not i["is_pr"]]
-            prs = [i for i in all_items if i["is_pr"]]
+            issues = github.list_issues(repo, include_prs=False)
             current = {i["number"] for i in issues}
             prev = known.get(repo, set())
             new_numbers = current - prev
@@ -42,14 +40,13 @@ async def _check_issues(config, send_message):
             if repo in known and new_numbers:
                 found_new = True
                 new_issues = [i for i in issues if i["number"] in new_numbers]
-                analyzed = agent.analyze_issues(new_issues, config.anthropic_api_key, prs)
                 text = f"New issues in {repo}:\n\n"
-                for a in analyzed:
-                    text += (
-                        f"#{a['number']} {a['title']}\n"
-                        f"  Difficulty: {a['difficulty']} | Urgency: {a['urgency']}\n"
-                        f"  {a['summary']}\n\n"
-                    )
+                for i in new_issues:
+                    labels = ", ".join(i["labels"]) if i["labels"] else ""
+                    text += f"#{i['number']} {i['title']}"
+                    if labels:
+                        text += f" [{labels}]"
+                    text += "\n"
                 await send_message(text)
 
             known[repo] = current
