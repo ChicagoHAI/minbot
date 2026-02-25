@@ -3,12 +3,13 @@
 import asyncio
 from unittest.mock import patch, MagicMock, AsyncMock
 import pytest
-from minbot.bot import cmd_start, cmd_issues, cmd_status, cmd_work, cmd_suggest, cmd_repos
+from minbot.bot import cmd_start, cmd_issues, cmd_prs, cmd_status, cmd_work, cmd_suggest, cmd_repos
 from minbot.config import Config
 
 
-def _make_update():
+def _make_update(chat_id=12345):
     update = MagicMock()
+    update.effective_chat.id = chat_id
     update.message = MagicMock()
     update.message.reply_text = AsyncMock()
     return update
@@ -49,6 +50,7 @@ async def test_cmd_start(mock_config, mock_save):
     update.message.reply_text.assert_called_once()
     text = update.message.reply_text.call_args[0][0]
     assert "/issues" in text
+    assert "/prs" in text
     assert "/work" in text
     assert "/repos" in text
 
@@ -89,6 +91,38 @@ async def test_cmd_issues(mock_gh, mock_agent, mock_config):
 
 @pytest.mark.asyncio
 @patch("minbot.bot._get_config")
+@patch("minbot.bot.github")
+async def test_cmd_prs(mock_gh, mock_config):
+    mock_config.return_value = _fake_config()
+    mock_gh.list_prs.return_value = [
+        {"number": 10, "title": "Fix bug", "labels": ["bugfix"], "createdAt": "2024-01-01T00:00:00"},
+    ]
+
+    update = _make_update()
+    await cmd_prs(update, _make_context())
+
+    text = update.message.reply_text.call_args[0][0]
+    assert "#10" in text
+    assert "Fix bug" in text
+    assert "[owner/repo]" in text
+
+
+@pytest.mark.asyncio
+@patch("minbot.bot._get_config")
+@patch("minbot.bot.github")
+async def test_cmd_prs_empty(mock_gh, mock_config):
+    mock_config.return_value = _fake_config()
+    mock_gh.list_prs.return_value = []
+
+    update = _make_update()
+    await cmd_prs(update, _make_context())
+
+    text = update.message.reply_text.call_args[0][0]
+    assert "No open pull requests" in text
+
+
+@pytest.mark.asyncio
+@patch("minbot.bot._get_config")
 @patch("minbot.bot.agent")
 @patch("minbot.bot.github")
 async def test_cmd_issues_empty(mock_gh, mock_agent, mock_config):
@@ -103,7 +137,9 @@ async def test_cmd_issues_empty(mock_gh, mock_agent, mock_config):
 
 
 @pytest.mark.asyncio
-async def test_cmd_status_no_work():
+@patch("minbot.bot._get_config")
+async def test_cmd_status_no_work(mock_config):
+    mock_config.return_value = _fake_config()
     update = _make_update()
     await cmd_status(update, _make_context())
     text = update.message.reply_text.call_args[0][0]
@@ -111,7 +147,9 @@ async def test_cmd_status_no_work():
 
 
 @pytest.mark.asyncio
-async def test_cmd_work_no_args():
+@patch("minbot.bot._get_config")
+async def test_cmd_work_no_args(mock_config):
+    mock_config.return_value = _fake_config()
     update = _make_update()
     await cmd_work(update, _make_context(args=[]))
     text = update.message.reply_text.call_args[0][0]

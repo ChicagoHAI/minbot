@@ -20,7 +20,7 @@ def _get_repo(repo: str):
 
 
 def list_issues(repo: str) -> list[dict]:
-    """List open issues for a repo."""
+    """List open issues for a repo (excludes pull requests)."""
     issues = _get_repo(repo).get_issues(state="open")
     return [
         {
@@ -31,6 +31,22 @@ def list_issues(repo: str) -> list[dict]:
             "createdAt": i.created_at.isoformat(),
         }
         for i in issues[:30]
+        if i.pull_request is None
+    ]
+
+
+def list_prs(repo: str) -> list[dict]:
+    """List open pull requests for a repo."""
+    prs = _get_repo(repo).get_pulls(state="open")
+    return [
+        {
+            "number": p.number,
+            "title": p.title,
+            "body": p.body or "",
+            "labels": [l.name for l in p.labels],
+            "createdAt": p.created_at.isoformat(),
+        }
+        for p in prs[:30]
     ]
 
 

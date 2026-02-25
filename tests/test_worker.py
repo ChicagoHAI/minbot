@@ -1,7 +1,7 @@
 """Tests for Claude Code worker."""
 
 import asyncio
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import patch, MagicMock, AsyncMock, mock_open
 import pytest
 from minbot import worker
 
@@ -13,19 +13,16 @@ async def test_work_on_issue_success(mock_exec, mock_gh):
     proc = AsyncMock()
     proc.returncode = 0
     proc.wait = AsyncMock()
-
-    async def mock_lines():
-        for line in [b"Analyzing issue...\n", b"Making changes...\n", b"Done.\n"]:
-            yield line
-
-    proc.stdout = mock_lines()
     mock_exec.return_value = proc
 
     mock_gh.clone_repo = MagicMock()
     mock_gh.create_branch = MagicMock()
     mock_gh.create_pr = MagicMock(return_value="https://github.com/owner/repo/pull/1")
 
-    with patch("subprocess.run"):
+    log_content = "Analyzing issue...\nMaking changes...\nDone.\n"
+    m = mock_open(read_data=log_content)
+
+    with patch("subprocess.run"), patch("builtins.open", m), patch("os.makedirs"):
         issue = {"number": 1, "title": "Fix bug", "body": "Details"}
         result = await worker.work_on_issue("/workspace", "owner/repo", issue)
 
@@ -40,19 +37,17 @@ async def test_work_on_issue_failure(mock_exec, mock_gh):
     proc = AsyncMock()
     proc.returncode = 1
     proc.wait = AsyncMock()
-
-    async def mock_lines():
-        for line in [b"Error occurred\n"]:
-            yield line
-
-    proc.stdout = mock_lines()
     mock_exec.return_value = proc
 
     mock_gh.clone_repo = MagicMock()
     mock_gh.create_branch = MagicMock()
 
-    issue = {"number": 1, "title": "Fix bug", "body": "Details"}
-    result = await worker.work_on_issue("/workspace", "owner/repo", issue)
+    log_content = "Error occurred\n"
+    m = mock_open(read_data=log_content)
+
+    with patch("builtins.open", m), patch("os.makedirs"):
+        issue = {"number": 1, "title": "Fix bug", "body": "Details"}
+        result = await worker.work_on_issue("/workspace", "owner/repo", issue)
 
     assert "exited with code 1" in result
 
@@ -60,16 +55,10 @@ async def test_work_on_issue_failure(mock_exec, mock_gh):
 @pytest.mark.asyncio
 @patch("minbot.worker.github")
 @patch("asyncio.create_subprocess_exec")
-async def test_work_on_issue_streams_output(mock_exec, mock_gh):
+async def test_work_on_issue_calls_on_output(mock_exec, mock_gh):
     proc = AsyncMock()
     proc.returncode = 0
     proc.wait = AsyncMock()
-
-    async def mock_lines():
-        for line in [b"line1\n", b"line2\n"]:
-            yield line
-
-    proc.stdout = mock_lines()
     mock_exec.return_value = proc
 
     mock_gh.clone_repo = MagicMock()
@@ -81,8 +70,13 @@ async def test_work_on_issue_streams_output(mock_exec, mock_gh):
     async def on_output(text):
         collected.append(text)
 
-    with patch("subprocess.run"):
+    log_content = "line1\nline2\n"
+    m = mock_open(read_data=log_content)
+
+    with patch("subprocess.run"), patch("builtins.open", m), patch("os.makedirs"):
         issue = {"number": 5, "title": "Add feature", "body": ""}
         await worker.work_on_issue("/workspace", "owner/repo", issue, on_output)
 
-    assert collected == ["line1", "line2"]
+    assert len(collected) == 1
+    assert "line1" in collected[0]
+    assert "line2" in collected[0]
