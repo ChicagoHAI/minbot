@@ -40,6 +40,7 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "minbot is running. Commands:\n"
         "/issues - list issues with estimates\n"
+        "/prs - list open pull requests\n"
         "/work <number> or /work <repo> <number> - work on an issue\n"
         "/status - check current work status\n"
         "/suggest - get suggestion on what to work on\n"
@@ -97,6 +98,33 @@ async def cmd_issues(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             )
 
     await update.message.reply_text(text or "No open issues.")
+
+
+async def cmd_prs(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    config = _get_config()
+    if not _authorized(update, config):
+        return
+
+    repos = _resolve_repos(config, ctx.args)
+    if not repos:
+        await update.message.reply_text(f"Repo not found. Configured: {', '.join(config.github_repos)}")
+        return
+
+    text = ""
+    for repo in repos:
+        prs = github.list_prs(repo)
+        if not prs:
+            continue
+        text += f"[{repo}]\n"
+        for p in prs:
+            labels = ", ".join(p["labels"]) if p["labels"] else ""
+            text += f"#{p['number']} {p['title']}"
+            if labels:
+                text += f" [{labels}]"
+            text += "\n"
+        text += "\n"
+
+    await update.message.reply_text(text or "No open pull requests.")
 
 
 async def cmd_suggest(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -185,6 +213,7 @@ def main():
 
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("issues", cmd_issues))
+    app.add_handler(CommandHandler("prs", cmd_prs))
     app.add_handler(CommandHandler("suggest", cmd_suggest))
     app.add_handler(CommandHandler("work", cmd_work))
     app.add_handler(CommandHandler("status", cmd_status))

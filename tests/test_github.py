@@ -12,13 +12,14 @@ def _setup_client():
     return mock_client
 
 
-def _mock_issue(number=1, title="Bug", body="Details", labels=None):
+def _mock_issue(number=1, title="Bug", body="Details", labels=None, is_pr=False):
     issue = MagicMock()
     issue.number = number
     issue.title = title
     issue.body = body
     issue.labels = [MagicMock(name=l) for l in (labels or [])]
     issue.created_at = MagicMock(isoformat=MagicMock(return_value="2024-01-01T00:00:00"))
+    issue.pull_request = MagicMock() if is_pr else None
     return issue
 
 
@@ -36,12 +37,40 @@ def test_list_issues():
     client.get_repo.assert_called_once_with("owner/repo")
 
 
+def test_list_issues_excludes_prs():
+    client = _setup_client()
+    repo = client.get_repo.return_value
+    repo.get_issues.return_value = [
+        _mock_issue(1, "Bug fix", "Fix the bug"),
+        _mock_issue(2, "PR: Update deps", "Update", is_pr=True),
+        _mock_issue(3, "Feature", "Add feature"),
+    ]
+    result = github.list_issues("owner/repo")
+    assert len(result) == 2
+    assert result[0]["number"] == 1
+    assert result[1]["number"] == 3
+
+
 def test_list_issues_empty():
     client = _setup_client()
     repo = client.get_repo.return_value
     repo.get_issues.return_value = []
     result = github.list_issues("owner/repo")
     assert result == []
+
+
+def test_list_prs():
+    client = _setup_client()
+    repo = client.get_repo.return_value
+    repo.get_pulls.return_value = [
+        _mock_issue(10, "PR: Fix bug", "Fixes #1"),
+        _mock_issue(11, "PR: Add feature", "Adds feature"),
+    ]
+    result = github.list_prs("owner/repo")
+    assert len(result) == 2
+    assert result[0]["number"] == 10
+    assert result[1]["title"] == "PR: Add feature"
+    repo.get_pulls.assert_called_once_with(state="open")
 
 
 def test_get_issue():
