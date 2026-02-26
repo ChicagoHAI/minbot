@@ -2,6 +2,8 @@
 
 import json
 import logging
+import os
+import random
 import traceback
 from pathlib import Path
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -88,6 +90,36 @@ async def _send_suggestions(config, send_message):
         await send_message(f"Suggestion failed: {e}")
 
 
+async def _review_code(config, send_message):
+    """Periodic code review: randomly review codebase or an open PR."""
+    try:
+        for repo in config.github_repos:
+            try:
+                # 70% chance to review a PR, 30% to review codebase
+                review_pr = random.random() < 0.7
+                prs = github.list_prs(repo) if review_pr else []
+
+                if prs:
+                    pr_info = random.choice(prs)
+                    pr = github.get_pr(repo, pr_info["number"])
+                    comments = github.get_pr_comments(repo, pr_info["number"])
+                    review = agent.review_pr(pr, comments, config.anthropic_api_key)
+                    await send_message(
+                        f"PR Review — {repo} #{pr['number']}: {pr['title']}\n\n{review[:4000]}"
+                    )
+                else:
+                    repo_path = os.path.join(config.workspace_dir, repo)
+                    github.clone_repo(repo, repo_path)
+                    review = agent.review_codebase(repo_path, config.anthropic_api_key)
+                    await send_message(f"Code Review — {repo}\n\n{review[:4000]}")
+            except Exception as e:
+                log.error("Review failed for %s: %s", repo, traceback.format_exc())
+                await send_message(f"Review failed for {repo}: {e}")
+    except Exception as e:
+        log.error("Review job failed: %s", traceback.format_exc())
+        await send_message(f"Review job failed: {e}")
+
+
 def start(config, send_message) -> AsyncIOScheduler:
     """Start the periodic issue checker and suggestion jobs."""
     global _scheduler
@@ -102,6 +134,12 @@ def start(config, send_message) -> AsyncIOScheduler:
         hours=config.suggest_interval_hours,
         args=[config, send_message],
     )
+    if config.review_interval_hours:
+        _scheduler.add_job(
+            _review_code, "interval",
+            hours=config.review_interval_hours,
+            args=[config, send_message],
+        )
     # Run both immediately on startup
     _scheduler.add_job(_check_issues, args=[config, send_message])
     _scheduler.add_job(_send_suggestions, args=[config, send_message])

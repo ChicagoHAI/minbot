@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import os
 from telegram import Update
 from telegram.ext import (
     Application, CommandHandler, ContextTypes,
@@ -42,6 +43,8 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         "/issues - list issues with estimates\n"
         "/prs - list open pull requests\n"
         "/work <number> or /work <repo> <number> - work on an issue\n"
+        "/pr <number> [comments] - address PR review comments\n"
+        "/review [repo] - run a code review\n"
         "/status - check current work status\n"
         "/suggest - get suggestion on what to work on\n"
         "/repos - list configured repos"
@@ -159,6 +162,39 @@ async def cmd_suggest(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(suggestion)
 
 
+def _parse_repo_and_number(config, args):
+    """Parse repo and number from command args.
+
+    Returns (repo, number, remaining_args) or raises ValueError.
+    """
+    if not args:
+        raise ValueError("No arguments provided.")
+
+    # Try first arg as number (single repo mode)
+    first_is_number = True
+    try:
+        number = int(args[0])
+    except ValueError:
+        first_is_number = False
+
+    if first_is_number:
+        if len(config.github_repos) != 1:
+            raise ValueError("Multiple repos configured. Specify repo name.")
+        return config.github_repos[0], number, args[1:]
+
+    # First arg is repo, second is number
+    if len(args) < 2:
+        raise ValueError("Usage: <number> or <repo> <number>")
+
+    repo = args[0]
+    matches = _resolve_repos(config, [repo])
+    if not matches:
+        raise ValueError(f"Repo not found: {repo}")
+    repo = matches[0]
+    number = int(args[1])
+    return repo, number, args[2:]
+
+
 async def cmd_work(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     global _current_task
     config = _get_config()
@@ -169,18 +205,11 @@ async def cmd_work(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Usage: /work <number> or /work <repo> <number>")
         return
 
-    # Parse args: /work <number> (single repo) or /work <repo> <number>
-    if len(ctx.args) == 1:
-        if len(config.github_repos) != 1:
-            await update.message.reply_text(
-                "Multiple repos configured. Usage: /work <repo> <number>"
-            )
-            return
-        repo = config.github_repos[0]
-        number = int(ctx.args[0])
-    else:
-        repo = ctx.args[0]
-        number = int(ctx.args[1])
+    try:
+        repo, number, _ = _parse_repo_and_number(config, ctx.args)
+    except ValueError as e:
+        await update.message.reply_text(str(e))
+        return
 
     issue = github.get_issue(repo, number)
 
@@ -205,6 +234,79 @@ async def cmd_work(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     _current_task = asyncio.create_task(do_work())
 
 
+async def cmd_pr(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    global _current_task
+    config = _get_config()
+    if not _authorized(update, config):
+        return
+
+    if not ctx.args:
+        await update.message.reply_text(
+            "Usage: /pr <number> [comments] or /pr <repo> <number> [comments]"
+        )
+        return
+
+    try:
+        repo, number, remaining = _parse_repo_and_number(config, ctx.args)
+    except ValueError as e:
+        await update.message.reply_text(str(e))
+        return
+
+    user_instructions = " ".join(remaining)
+
+    if _current_task and not _current_task.done():
+        await update.message.reply_text("Already working on something. Check /status.")
+        return
+
+    pr = github.get_pr(repo, number)
+    comments = github.get_pr_comments(repo, number)
+
+    await update.message.reply_text(
+        f"Addressing review comments on {repo} PR #{number}: {pr['title']}\n"
+        f"Found {len(comments)} comment(s)."
+    )
+
+    async def on_output(text: str):
+        pass
+
+    async def do_work():
+        try:
+            result = await worker.address_pr_comments(
+                config.workspace_dir, repo, pr, comments,
+                user_instructions, on_output,
+            )
+            await update.message.reply_text(result)
+        except Exception as e:
+            await update.message.reply_text(f"Error: {e}")
+
+    _current_task = asyncio.create_task(do_work())
+
+
+async def cmd_review(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    config = _get_config()
+    if not _authorized(update, config):
+        return
+
+    repos = _resolve_repos(config, ctx.args)
+    if not repos:
+        await update.message.reply_text(f"Repo not found. Configured: {', '.join(config.github_repos)}")
+        return
+
+    await update.message.reply_text("Starting code review...")
+
+    async def do_review():
+        try:
+            for repo in repos:
+                repo_path = os.path.join(config.workspace_dir, repo)
+                github.clone_repo(repo, repo_path)
+                review = agent.review_codebase(repo_path, config.anthropic_api_key)
+                await update.message.reply_text(f"Review of {repo}:\n\n{review[:4000]}")
+        except Exception as e:
+            await update.message.reply_text(f"Review error: {e}")
+
+    asyncio.create_task(do_review())
+
+
 async def cmd_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     config = _get_config()
     if not _authorized(update, config):
@@ -227,6 +329,8 @@ def main():
     app.add_handler(CommandHandler("prs", cmd_prs))
     app.add_handler(CommandHandler("suggest", cmd_suggest))
     app.add_handler(CommandHandler("work", cmd_work))
+    app.add_handler(CommandHandler("pr", cmd_pr))
+    app.add_handler(CommandHandler("review", cmd_review))
     app.add_handler(CommandHandler("status", cmd_status))
     app.add_handler(CommandHandler("repos", cmd_repos))
 

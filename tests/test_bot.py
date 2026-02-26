@@ -73,7 +73,7 @@ async def test_cmd_repos(mock_config):
 async def test_cmd_issues(mock_gh, mock_agent, mock_config):
     mock_config.return_value = _fake_config()
     mock_gh.list_issues.return_value = [
-        {"number": 1, "title": "Bug", "body": "Fix"},
+        {"number": 1, "title": "Bug", "body": "Fix", "is_pr": False, "labels": [], "createdAt": "2024-01-01T00:00:00"},
     ]
     mock_agent.analyze_issues.return_value = [
         {"number": 1, "title": "Bug", "difficulty": "easy", "urgency": "high", "summary": "Fix the bug"},
@@ -163,7 +163,7 @@ async def test_cmd_work_multi_repo_no_repo_arg(mock_config):
     update = _make_update()
     await cmd_work(update, _make_context(args=["1"]))
     text = update.message.reply_text.call_args[0][0]
-    assert "Multiple repos" in text
+    assert "Multiple repos" in text or "Specify repo" in text
 
 
 @pytest.mark.asyncio
@@ -172,7 +172,7 @@ async def test_cmd_work_multi_repo_no_repo_arg(mock_config):
 @patch("minbot.bot.github")
 async def test_cmd_suggest(mock_gh, mock_agent, mock_config):
     mock_config.return_value = _fake_config()
-    mock_gh.list_issues.return_value = [{"number": 1, "title": "Bug"}]
+    mock_gh.list_issues.return_value = [{"number": 1, "title": "Bug", "is_pr": False, "labels": [], "createdAt": "2024-01-01T00:00:00"}]
     mock_agent.analyze_issues.return_value = [{"number": 1, "difficulty": "easy", "urgency": "high"}]
     mock_agent.suggest_next.return_value = "Work on #1."
 

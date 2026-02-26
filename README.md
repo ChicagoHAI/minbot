@@ -12,7 +12,7 @@
 A lightweight Telegram bot that monitors GitHub issues, estimates difficulty/urgency, suggests what to work on, and can autonomously work on issues using Claude Code.
 
 <!-- BEGIN LINE COUNT -->
-📏 Core bot in **730 lines** of Python (run `bash core_lines.sh` to verify)
+📏 Core bot in **1076 lines** of Python (run `bash core_lines.sh` to verify)
 <!-- END LINE COUNT -->
 
 ## Quick Start
@@ -85,6 +85,9 @@ uv run minbot                      # start the bot
 | `/suggest [repo]` | Get a recommendation on what to work on next |
 | `/work <number>` | Work on an issue (single repo) |
 | `/work <repo> <number>` | Work on an issue in a specific repo |
+| `/pr <number> [comments]` | Address PR review comments |
+| `/pr <repo> <number> [comments]` | Address PR review comments in a specific repo |
+| `/review [repo]` | Run a code review on the codebase |
 | `/repos` | List configured repos |
 | `/status` | Check progress of current work |
 
@@ -97,6 +100,24 @@ When you send `/work 42`, minbot will:
 3. Spawn Claude Code CLI with the issue context
 4. Claude Code makes changes, commits, and pushes
 5. minbot creates a PR and sends you the link
+
+## How `/pr` works
+
+When you send `/pr 7 please fix the formatting too`, minbot will:
+
+1. Fetch the PR details and all review comments from GitHub
+2. Clone/pull the repo and checkout the PR branch
+3. Run Claude Code with the PR context, review comments, and your additional instructions
+4. Claude addresses the comments, commits, and pushes to the same branch
+5. Report the result back via Telegram
+
+## Periodic Code Review
+
+When `review_interval_hours` is configured, minbot periodically reviews each repo:
+- **70% chance**: picks a random open PR and reviews it (overall assessment, key concerns, unaddressed comments)
+- **30% chance**: reviews the whole codebase for bugs, quality improvements, and performance issues
+
+You can also trigger a review manually with `/review [repo]`.
 
 ## Issue Analysis
 
@@ -117,6 +138,7 @@ All config lives in `~/.minbot/`. The full set of options in `config.json`:
 | `anthropic_api_key` | `null` | If set, uses Anthropic SDK instead of Claude CLI |
 | `check_interval_hours` | `6` | How often to check for new issues |
 | `suggest_interval_hours` | `24` | How often to send work suggestions |
+| `review_interval_hours` | `null` | How often to run periodic code reviews (disabled by default) |
 | `workspace_dir` | `"/workspace"` | Where repos are cloned for `/work` |
 
 When running with Docker, `workspace_dir` must be a path inside the container. The default `/workspace` is backed by a Docker volume and persists across restarts. When running without Docker, set it to a local path (e.g. `"/home/you/minbot_workspace"`).

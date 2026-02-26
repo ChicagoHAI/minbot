@@ -29,7 +29,7 @@ async def test_check_issues_detects_new_after_empty(mock_gh, mock_agent, mock_lo
     # First check: no issues. Simulates known_issues saved as empty set.
     mock_load.return_value = {"owner/repo": set()}
     mock_gh.list_issues.return_value = [
-        {"number": 1, "title": "New bug", "body": ""},
+        {"number": 1, "title": "New bug", "body": "", "labels": [], "is_pr": False, "createdAt": "2024-01-01T00:00:00"},
     ]
     mock_agent.analyze_issues.return_value = [
         {"number": 1, "title": "New bug", "difficulty": "easy", "urgency": "high", "summary": "Fix it"},

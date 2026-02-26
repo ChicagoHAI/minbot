@@ -87,3 +87,51 @@ Issues:
 {json.dumps(issues, indent=2, default=str)}"""
 
     return _call(prompt, api_key)
+
+
+def review_codebase(repo_path: str, api_key: str | None = None) -> str:
+    """Run Claude on a repo to identify improvements and drawbacks.
+
+    Uses --print mode (no edits). Returns readable review text.
+    """
+    prompt = (
+        "Review this codebase. Identify:\n"
+        "1. Clear bugs or issues that should be fixed\n"
+        "2. Code quality improvements (maintainability, readability)\n"
+        "3. Potential performance issues\n\n"
+        "Be concise and actionable. Focus on the most impactful items (top 3-5). "
+        "Skip trivial style nits."
+    )
+    result = subprocess.run(
+        ["claude", "--print", "-p", prompt],
+        cwd=repo_path, capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"claude CLI failed: {result.stderr.strip()}")
+    return result.stdout.strip() or "No output from review."
+
+
+def review_pr(pr: dict, comments: list[dict], api_key: str | None = None) -> str:
+    """Review a PR's context and comments, suggest improvements."""
+    comments_text = ""
+    for c in comments:
+        if c["type"] == "review":
+            comments_text += f"- [{c['path']}:{c.get('line', '?')}] @{c['user']}: {c['body']}\n"
+        else:
+            comments_text += f"- @{c['user']}: {c['body']}\n"
+
+    prompt = (
+        f"Review this pull request and provide feedback.\n\n"
+        f"PR #{pr['number']}: {pr['title']}\n\n"
+        f"{pr.get('body', '')}\n\n"
+    )
+    if comments_text:
+        prompt += f"Existing review comments:\n{comments_text}\n\n"
+    prompt += (
+        "Provide a concise review:\n"
+        "1. Overall assessment (looks good / needs work / has issues)\n"
+        "2. Key concerns or suggestions (top 3)\n"
+        "3. Any comments that still need to be addressed\n\n"
+        "Be brief and actionable."
+    )
+    return _call(prompt, api_key)

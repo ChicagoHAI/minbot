@@ -13,6 +13,7 @@ class Config(BaseModel):
     anthropic_api_key: str | None = None
     check_interval_hours: int = 6
     suggest_interval_hours: int = 24
+    review_interval_hours: int | None = None
     workspace_dir: str = "/workspace"
 
 

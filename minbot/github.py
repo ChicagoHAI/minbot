@@ -78,6 +78,79 @@ def create_pr(repo: str, title: str, body: str, branch: str) -> str:
     return pr.html_url
 
 
+def list_prs(repo: str) -> list[dict]:
+    """List open pull requests for a repo."""
+    results = []
+    for pr in _get_repo(repo).get_pulls(state="open"):
+        results.append({
+            "number": pr.number,
+            "title": pr.title,
+            "body": pr.body or "",
+            "branch": pr.head.ref,
+        })
+        if len(results) >= 20:
+            break
+    return results
+
+
+def get_pr(repo: str, number: int) -> dict:
+    """Fetch PR details (title, body, branch name)."""
+    pr = _get_repo(repo).get_pull(number)
+    return {
+        "number": pr.number,
+        "title": pr.title,
+        "body": pr.body or "",
+        "branch": pr.head.ref,
+        "base": pr.base.ref,
+    }
+
+
+def get_pr_comments(repo: str, number: int) -> list[dict]:
+    """Fetch review comments (line-level) and issue comments for a PR."""
+    r = _get_repo(repo)
+    pr = r.get_pull(number)
+    comments = []
+    # Line-level review comments
+    for c in pr.get_review_comments():
+        comments.append({
+            "type": "review",
+            "path": c.path,
+            "line": c.position,
+            "body": c.body,
+            "user": c.user.login,
+        })
+    # General issue comments on the PR
+    for c in pr.get_issue_comments():
+        comments.append({
+            "type": "issue",
+            "body": c.body,
+            "user": c.user.login,
+        })
+    return comments
+
+
+def checkout_pr_branch(repo_path: str, branch: str) -> None:
+    """Fetch and checkout an existing PR branch."""
+    subprocess.run(
+        ["git", "fetch", "origin", branch],
+        cwd=repo_path, check=True, capture_output=True,
+    )
+    result = subprocess.run(
+        ["git", "checkout", branch],
+        cwd=repo_path, capture_output=True,
+    )
+    if result.returncode != 0:
+        subprocess.run(
+            ["git", "checkout", "-b", branch, f"origin/{branch}"],
+            cwd=repo_path, check=True, capture_output=True,
+        )
+    else:
+        subprocess.run(
+            ["git", "pull", "origin", branch],
+            cwd=repo_path, check=True, capture_output=True,
+        )
+
+
 def clone_repo(repo: str, path: str) -> None:
     """Clone a repo, or if already cloned, checkout main and pull."""
     if os.path.exists(os.path.join(path, ".git")):
