@@ -299,8 +299,24 @@ async def cmd_review(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             for repo in repos:
                 repo_path = os.path.join(config.workspace_dir, repo)
                 github.clone_repo(repo, repo_path)
-                review = agent.review_codebase(repo_path, config.anthropic_api_key)
-                await update.message.reply_text(f"Review of {repo}:\n\n{review[:4000]}")
+                existing = github.list_issues(repo, include_prs=False)
+                suggestions = agent.review_codebase(repo_path, existing, config.anthropic_api_key)
+                if not suggestions:
+                    await update.message.reply_text(f"Review of {repo}: no suggestions.")
+                    continue
+                created = []
+                for s in suggestions:
+                    body = (
+                        f"{s['body']}\n\n"
+                        f"---\n"
+                        f"_Identified by [minbot](https://github.com/ChicagoHAI/minbot) code review_"
+                    )
+                    url = github.create_issue(repo, s["title"], body)
+                    created.append(f"- {s['title']}: {url}")
+                await update.message.reply_text(
+                    f"Review of {repo} — created {len(created)} issue(s):\n"
+                    + "\n".join(created)
+                )
         except Exception as e:
             await update.message.reply_text(f"Review error: {e}")
 

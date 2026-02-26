@@ -89,30 +89,61 @@ Issues:
     return _call(prompt, api_key)
 
 
-def review_codebase(repo_path: str, api_key: str | None = None) -> str:
+def review_codebase(repo_path: str, existing_issues: list[dict] | None = None, api_key: str | None = None) -> list[dict]:
     """Run Claude on a repo to identify improvements and drawbacks.
 
-    Uses --print mode (no edits). Returns readable review text.
+    Uses --print mode (no edits). Returns list of {title, body} dicts
+    suitable for creating GitHub issues.
+
+    Args:
+        repo_path: Path to the cloned repo.
+        existing_issues: Current open issues [{number, title, body}, ...] to avoid duplicates.
+        api_key: Optional Anthropic API key (unused here, kept for signature consistency).
     """
+    system = (
+        "You are a code reviewer. You analyze codebases and identify actionable improvements. "
+        "Respond in JSON only. No markdown fences."
+    )
+    issues_section = ""
+    if existing_issues:
+        items = "\n".join(f"- #{i['number']}: {i['title']}" for i in existing_issues)
+        issues_section = (
+            f"\n\nThe following issues already exist in the tracker. "
+            f"Do NOT suggest anything that overlaps with these:\n{items}\n"
+        )
     prompt = (
-        "Review this codebase. Identify:\n"
-        "1. Clear bugs or issues that should be fixed\n"
-        "2. Code quality improvements (maintainability, readability)\n"
-        "3. Potential performance issues\n\n"
-        "Be concise and actionable. Focus on the most impactful items (top 3-5). "
-        "Skip trivial style nits."
+        "Review this codebase. Identify the top 3-5 most impactful improvements:\n"
+        "- Clear bugs or issues that should be fixed\n"
+        "- Code quality improvements (maintainability, readability)\n"
+        "- Potential performance issues\n\n"
+        "Skip trivial style nits. Each item should be actionable.\n"
+        f"{issues_section}\n"
+        "Return a JSON array of objects with keys:\n"
+        "- title: concise issue title (imperative, e.g. 'Fix race condition in worker')\n"
+        "- body: detailed description of the problem and suggested fix"
     )
     result = subprocess.run(
-        ["claude", "--print", "-p", prompt],
+        ["claude", "--print", "-p", f"{system}\n\n{prompt}"],
         cwd=repo_path, capture_output=True, text=True,
     )
     if result.returncode != 0:
         raise RuntimeError(f"claude CLI failed: {result.stderr.strip()}")
-    return result.stdout.strip() or "No output from review."
+    raw = result.stdout.strip()
+    if not raw:
+        return []
+    text = raw.strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[1]
+    if text.endswith("```"):
+        text = text[:-3]
+    return json.loads(text)
 
 
-def review_pr(pr: dict, comments: list[dict], api_key: str | None = None) -> str:
-    """Review a PR's context and comments, suggest improvements."""
+def review_pr(pr: dict, comments: list[dict], repo_path: str, api_key: str | None = None) -> str:
+    """Review a PR by running Claude on the checked-out branch.
+
+    Returns Claude's review text as a comment to post on the PR.
+    """
     comments_text = ""
     for c in comments:
         if c["type"] == "review":
@@ -121,17 +152,23 @@ def review_pr(pr: dict, comments: list[dict], api_key: str | None = None) -> str
             comments_text += f"- @{c['user']}: {c['body']}\n"
 
     prompt = (
-        f"Review this pull request and provide feedback.\n\n"
+        f"Review this pull request's code changes and provide feedback.\n\n"
         f"PR #{pr['number']}: {pr['title']}\n\n"
         f"{pr.get('body', '')}\n\n"
     )
     if comments_text:
         prompt += f"Existing review comments:\n{comments_text}\n\n"
     prompt += (
-        "Provide a concise review:\n"
+        "Look at the actual code in this branch. Provide a concise review:\n"
         "1. Overall assessment (looks good / needs work / has issues)\n"
         "2. Key concerns or suggestions (top 3)\n"
-        "3. Any comments that still need to be addressed\n\n"
+        "3. Any existing comments that still need to be addressed\n\n"
         "Be brief and actionable."
     )
-    return _call(prompt, api_key)
+    result = subprocess.run(
+        ["claude", "--print", "-p", prompt],
+        cwd=repo_path, capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"claude CLI failed: {result.stderr.strip()}")
+    return result.stdout.strip() or "No review output."

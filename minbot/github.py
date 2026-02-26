@@ -151,6 +151,17 @@ def checkout_pr_branch(repo_path: str, branch: str) -> None:
         )
 
 
+def create_issue(repo: str, title: str, body: str) -> str:
+    """Create a GitHub issue. Returns the issue URL."""
+    issue = _get_repo(repo).create_issue(title=title, body=body)
+    return issue.html_url
+
+
+def add_pr_comment(repo: str, number: int, body: str) -> None:
+    """Add a general comment on a PR."""
+    _get_repo(repo).get_issue(number).create_comment(body)
+
+
 def clone_repo(repo: str, path: str) -> None:
     """Clone a repo, or if already cloned, checkout main and pull."""
     if os.path.exists(os.path.join(path, ".git")):
