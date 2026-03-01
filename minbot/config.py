@@ -1,4 +1,7 @@
+import contextlib
 import json
+import os
+import tempfile
 from pathlib import Path
 from pydantic import BaseModel
 
@@ -23,4 +26,18 @@ def load_config(path: Path = CONFIG_PATH) -> Config:
 
 def save_config(config: Config, path: Path = CONFIG_PATH) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(config.model_dump_json(indent=2))
+    os.chmod(path.parent, 0o700)
+    fd, tmp = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
+    closed = False
+    try:
+        os.write(fd, config.model_dump_json(indent=2).encode())
+        os.fchmod(fd, 0o600)
+        os.close(fd)
+        closed = True
+        os.rename(tmp, path)
+    except BaseException:
+        if not closed:
+            os.close(fd)
+        with contextlib.suppress(FileNotFoundError):
+            os.unlink(tmp)
+        raise
