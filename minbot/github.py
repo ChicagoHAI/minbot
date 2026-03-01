@@ -1,7 +1,9 @@
 """GitHub operations via PyGithub + git CLI."""
 
 import os
+import stat
 import subprocess
+import tempfile
 from github import Github
 
 _client: Github | None = None
@@ -162,6 +164,27 @@ def add_pr_comment(repo: str, number: int, body: str) -> None:
     _get_repo(repo).get_issue(number).create_comment(body)
 
 
+def _git_clone_with_token(repo: str, path: str) -> None:
+    """Clone using GIT_ASKPASS to avoid embedding the token in the command line."""
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=False) as f:
+        f.write("#!/bin/sh\n"
+                "case \"$1\" in\n"
+                "  *Username*) echo x-access-token;;\n"
+                f"  *Password*) echo \"$GIT_TOKEN\";;\n"
+                "esac\n")
+        askpass = f.name
+    os.chmod(askpass, stat.S_IRWXU)
+    try:
+        env = {**os.environ, "GIT_ASKPASS": askpass,
+               "GIT_TERMINAL_PROMPT": "0", "GIT_TOKEN": _token}
+        subprocess.run(
+            ["git", "clone", f"https://github.com/{repo}.git", path],
+            check=True, capture_output=True, env=env,
+        )
+    finally:
+        os.unlink(askpass)
+
+
 def clone_repo(repo: str, path: str) -> None:
     """Clone a repo, or if already cloned, checkout main and pull."""
     if os.path.exists(os.path.join(path, ".git")):
@@ -180,7 +203,4 @@ def clone_repo(repo: str, path: str) -> None:
         )
     else:
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        subprocess.run(
-            ["git", "clone", f"https://x-access-token:{_token}@github.com/{repo}.git", path],
-            check=True, capture_output=True,
-        )
+        _git_clone_with_token(repo, path)

@@ -12,7 +12,7 @@
 A lightweight Telegram bot that monitors GitHub issues, estimates difficulty/urgency, suggests what to work on, and can autonomously work on issues using Claude Code.
 
 <!-- BEGIN LINE COUNT -->
-📏 Core bot in **1171 lines** of Python (run `bash core_lines.sh` to verify)
+📏 Core bot in **1191 lines** of Python (run `bash core_lines.sh` to verify)
 <!-- END LINE COUNT -->
 
 ## Quick Start
