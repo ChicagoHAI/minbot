@@ -117,7 +117,13 @@ def test_clone_repo_pulls_if_exists(mock_exists, mock_run):
 @patch("subprocess.run")
 @patch("os.path.exists", return_value=False)
 def test_clone_repo_clones_if_new(mock_exists, mock_run):
+    _setup_client()
     mock_run.return_value = MagicMock(returncode=0)
-    github.clone_repo("owner/repo", "/tmp/repo")
+    with patch("tempfile.NamedTemporaryFile", MagicMock()), \
+         patch("os.chmod"), \
+         patch("os.unlink"):
+        github.clone_repo("owner/repo", "/tmp/repo")
     args = mock_run.call_args[0][0]
     assert "clone" in args
+    # Token must NOT appear in the command-line arguments
+    assert all("fake-token" not in str(a) for a in args)
