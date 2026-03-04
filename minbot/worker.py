@@ -1,7 +1,6 @@
 """Claude Code CLI integration for working on issues and PRs."""
 
 import asyncio
-import json
 import logging
 import os
 import subprocess
@@ -13,17 +12,51 @@ log = logging.getLogger(__name__)
 LOGS_DIR = os.path.join(str(Path.home()), ".minbot", "logs", "claude")
 
 
+def _format_comments(comments: list[dict]) -> str:
+    """Format PR comments into readable text for prompts."""
+    lines = []
+    for c in comments:
+        if c["type"] == "review":
+            lines.append(f"- [{c['path']}:{c.get('line', '?')}] @{c['user']}: {c['body']}")
+        else:
+            lines.append(f"- @{c['user']}: {c['body']}")
+    return "\n".join(lines)
+
+
+async def _run_claude(repo_path: str, prompt: str, log_path: str, on_output=None) -> tuple[int, str]:
+    """Run Claude Code CLI and return (exit_code, output).
+
+    Handles logging, subprocess management, and output capture.
+    """
+    os.makedirs(os.path.dirname(log_path), exist_ok=True)
+    cmd = ["claude", "--dangerously-skip-permissions", "-p", prompt]
+    log.info("Running claude (log: %s)", log_path)
+
+    with open(log_path, "w") as log_file:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd, cwd=repo_path, stdout=log_file, stderr=log_file,
+        )
+        await proc.wait()
+
+    log.info("Claude finished with exit code %s (log: %s)", proc.returncode, log_path)
+
+    with open(log_path) as f:
+        output = f.read()
+
+    if on_output and output:
+        await on_output(output[-4000:])
+
+    return proc.returncode, output
+
+
+def _log_path_for(repo: str, name: str) -> str:
+    return os.path.join(LOGS_DIR, repo.replace("/", "_"), name)
+
+
 async def work_on_issue(
     workspace_dir: str, repo: str, issue: dict, on_output=None,
 ) -> str:
-    """Run Claude Code on an issue. Returns the final output.
-
-    Args:
-        workspace_dir: Base directory for cloned repos.
-        repo: GitHub repo in owner/repo format.
-        issue: Issue dict with number, title, body.
-        on_output: Optional async callback for streaming output lines.
-    """
+    """Run Claude Code on an issue. Returns the final output."""
     repo_path = os.path.join(workspace_dir, repo)
     branch = f"issue-{issue['number']}"
     github.clone_repo(repo, repo_path)
@@ -42,43 +75,18 @@ async def work_on_issue(
         f"6. Commit and push the branch '{branch}'."
     )
 
-    # Log to file — no buffer limits, persistent for debugging
-    log_dir = os.path.join(LOGS_DIR, repo.replace("/", "_"))
-    os.makedirs(log_dir, exist_ok=True)
-    log_path = os.path.join(log_dir, f"issue-{issue['number']}.log")
+    rc, output = await _run_claude(
+        repo_path, prompt,
+        _log_path_for(repo, f"issue-{issue['number']}.log"),
+        on_output,
+    )
+    if rc != 0:
+        return f"Claude Code exited with code {rc}\n{output[-2000:]}"
 
-    cmd = [
-        "claude", "--dangerously-skip-permissions",
-        "-p", prompt,
-    ]
-    log.info("Running claude on %s#%s (log: %s)", repo, issue['number'], log_path)
-
-    with open(log_path, "w") as log_file:
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            cwd=repo_path,
-            stdout=log_file,
-            stderr=log_file,
-        )
-        await proc.wait()
-
-    log.info("Claude finished with exit code %s (log: %s)", proc.returncode, log_path)
-
-    with open(log_path) as f:
-        output = f.read()
-
-    if on_output and output:
-        await on_output(output[-4000:])
-
-    if proc.returncode != 0:
-        return f"Claude Code exited with code {proc.returncode}\nLog: {log_path}\n{output[-2000:]}"
-
-    # Push (Claude already merged main and ran tests)
     subprocess.run(
         ["git", "push", "-u", "origin", branch],
         cwd=repo_path, check=True, capture_output=True,
     )
-    # Use the last portion of Claude's output as the PR summary
     summary = output.strip()[-3000:] if output.strip() else "No output captured."
     pr_body = (
         f"Closes #{issue['number']}\n\n"
@@ -96,7 +104,6 @@ async def work_on_issue(
         body=pr_body,
         branch=branch,
     )
-
     return f"Done! PR created: {pr_url}"
 
 
@@ -104,28 +111,13 @@ async def address_pr_comments(
     workspace_dir: str, repo: str, pr: dict, comments: list[dict],
     user_instructions: str = "", on_output=None,
 ) -> str:
-    """Run Claude Code on a PR branch to address review comments.
-
-    Args:
-        workspace_dir: Base directory for cloned repos.
-        repo: GitHub repo in owner/repo format.
-        pr: PR dict with number, title, body, branch.
-        comments: List of review/issue comments from get_pr_comments.
-        user_instructions: Additional instructions from the user's Telegram message.
-        on_output: Optional async callback for streaming output lines.
-    """
+    """Run Claude Code on a PR branch to address review comments."""
     repo_path = os.path.join(workspace_dir, repo)
     branch = pr["branch"]
     github.clone_repo(repo, repo_path)
     github.checkout_pr_branch(repo_path, branch)
 
-    comments_text = ""
-    for c in comments:
-        if c["type"] == "review":
-            comments_text += f"- [{c['path']}:{c.get('line', '?')}] @{c['user']}: {c['body']}\n"
-        else:
-            comments_text += f"- @{c['user']}: {c['body']}\n"
-
+    comments_text = _format_comments(comments)
     prompt = (
         f"Address the review comments on this pull request.\n\n"
         f"PR #{pr['number']}: {pr['title']}\n\n"
@@ -134,7 +126,6 @@ async def address_pr_comments(
     )
     if user_instructions:
         prompt += f"\nAdditional instructions from the developer:\n{user_instructions}\n"
-
     prompt += (
         f"\nSteps:\n"
         f"1. Read the project's CLAUDE.md and .github/workflows/ to understand the full CI pipeline.\n"
@@ -143,39 +134,66 @@ async def address_pr_comments(
         f"4. Commit and push to branch '{branch}'."
     )
 
-    log_dir = os.path.join(LOGS_DIR, repo.replace("/", "_"))
-    os.makedirs(log_dir, exist_ok=True)
-    log_path = os.path.join(log_dir, f"pr-{pr['number']}.log")
-
-    cmd = [
-        "claude", "--dangerously-skip-permissions",
-        "-p", prompt,
-    ]
-    log.info("Running claude on %s PR #%s (log: %s)", repo, pr['number'], log_path)
-
-    with open(log_path, "w") as log_file:
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            cwd=repo_path,
-            stdout=log_file,
-            stderr=log_file,
-        )
-        await proc.wait()
-
-    log.info("Claude finished with exit code %s (log: %s)", proc.returncode, log_path)
-
-    with open(log_path) as f:
-        output = f.read()
-
-    if on_output and output:
-        await on_output(output[-4000:])
-
-    if proc.returncode != 0:
-        return f"Claude Code exited with code {proc.returncode}\nLog: {log_path}\n{output[-2000:]}"
+    rc, output = await _run_claude(
+        repo_path, prompt,
+        _log_path_for(repo, f"pr-{pr['number']}.log"),
+        on_output,
+    )
+    if rc != 0:
+        return f"Claude Code exited with code {rc}\n{output[-2000:]}"
 
     subprocess.run(
         ["git", "push", "origin", branch],
         cwd=repo_path, check=True, capture_output=True,
     )
-
     return f"Done! Pushed changes to branch '{branch}' for PR #{pr['number']}."
+
+
+async def review_and_improve_pr(
+    workspace_dir: str, repo: str, pr: dict, comments: list[dict],
+    on_output=None,
+) -> str:
+    """Review a PR's code, address existing comments, and improve the code.
+
+    Unlike address_pr_comments (which only addresses existing review comments),
+    this also reviews the PR code itself and fixes any issues it finds.
+    """
+    repo_path = os.path.join(workspace_dir, repo)
+    branch = pr["branch"]
+    github.clone_repo(repo, repo_path)
+    github.checkout_pr_branch(repo_path, branch)
+
+    comments_text = _format_comments(comments)
+    comments_section = f"Existing review comments to address:\n{comments_text}\n" if comments_text else ""
+
+    prompt = (
+        f"Review and improve this pull request.\n\n"
+        f"PR #{pr['number']}: {pr['title']}\n\n"
+        f"{pr.get('body', '')}\n\n"
+        f"{comments_section}"
+        f"Steps:\n"
+        f"1. Read the project's CLAUDE.md and .github/workflows/ to understand the full CI pipeline.\n"
+        f"2. Review the code changes in this PR branch. Look for:\n"
+        f"   - Bugs, logic errors, or edge cases\n"
+        f"   - Code quality issues (readability, maintainability)\n"
+        f"   - Performance problems\n"
+        f"   - Missing error handling at system boundaries\n"
+        f"3. Address all existing review comments listed above (if any).\n"
+        f"4. Fix any issues you identified in step 2.\n"
+        f"5. Run every check from the CI pipeline. Fix all failures.\n"
+        f"6. Commit and push to branch '{branch}'."
+    )
+
+    rc, output = await _run_claude(
+        repo_path, prompt,
+        _log_path_for(repo, f"pr-review-{pr['number']}.log"),
+        on_output,
+    )
+    if rc != 0:
+        return f"Claude Code exited with code {rc}\n{output[-2000:]}"
+
+    subprocess.run(
+        ["git", "push", "origin", branch],
+        cwd=repo_path, check=True, capture_output=True,
+    )
+    return output.strip()[-3000:] if output.strip() else "No output captured."

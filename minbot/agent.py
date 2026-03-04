@@ -137,38 +137,3 @@ def review_codebase(repo_path: str, existing_issues: list[dict] | None = None, a
     if text.endswith("```"):
         text = text[:-3]
     return json.loads(text)
-
-
-def review_pr(pr: dict, comments: list[dict], repo_path: str, api_key: str | None = None) -> str:
-    """Review a PR by running Claude on the checked-out branch.
-
-    Returns Claude's review text as a comment to post on the PR.
-    """
-    comments_text = ""
-    for c in comments:
-        if c["type"] == "review":
-            comments_text += f"- [{c['path']}:{c.get('line', '?')}] @{c['user']}: {c['body']}\n"
-        else:
-            comments_text += f"- @{c['user']}: {c['body']}\n"
-
-    prompt = (
-        f"Review this pull request's code changes and provide feedback.\n\n"
-        f"PR #{pr['number']}: {pr['title']}\n\n"
-        f"{pr.get('body', '')}\n\n"
-    )
-    if comments_text:
-        prompt += f"Existing review comments:\n{comments_text}\n\n"
-    prompt += (
-        "Look at the actual code in this branch. Provide a concise review:\n"
-        "1. Overall assessment (looks good / needs work / has issues)\n"
-        "2. Key concerns or suggestions (top 3)\n"
-        "3. Any existing comments that still need to be addressed\n\n"
-        "Be brief and actionable."
-    )
-    result = subprocess.run(
-        ["claude", "--print", "-p", prompt],
-        cwd=repo_path, capture_output=True, text=True,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(f"claude CLI failed: {result.stderr.strip()}")
-    return result.stdout.strip() or "No review output."
